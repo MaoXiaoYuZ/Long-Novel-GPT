@@ -6,6 +6,8 @@ from demo.wrapper_for_demo import Long_Novel_GPT_Wrapper
 def tab_main_page(config):
     def get_available_input_options():
         input_options = []
+        if not os.path.exists("output"):
+            os.makedirs("output")
         for name in os.listdir("output"):
             if os.path.isdir(os.path.join("output", name)):
                 input_options.append(name)

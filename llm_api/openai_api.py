@@ -14,8 +14,8 @@ def num_tokens_from_messages(messages, model="gpt-3.5-turbo-0613"):
     return num_tokens
 
 openai_config = {
-    'api_key': None,
-    'base_url': None,
+    'api_key': '',
+    'base_url': '',
 }
 
 client = None
@@ -43,6 +43,8 @@ def count_gpt_api_cost(model, context_tokens, completion_tokens):
     return cost
 
 def stream_chat_with_gpt(messages, model='gpt-3.5-turbo-1106', max_tokens=4_096, response_format=None, n=1):
+    if client is None:
+        raise Exception('未配置openai_api！')
     chatstream = client.chat.completions.create(
                 stream=True,
                 model=model, 

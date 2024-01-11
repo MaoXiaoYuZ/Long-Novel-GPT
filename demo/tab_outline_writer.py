@@ -98,33 +98,38 @@ def tab_outline_writer(config):
 
         chatbot = gr.Chatbot()
 
+        def check_running(func):
+            def wrapper(*args, **kwargs):
+                if FLAG['running'] == 1:
+                    gr.Info("当前有操作正在进行，请稍后再试！")
+                    return
+
+                FLAG['running'] = 1
+                try:
+                    for ret in func(*args, **kwargs):
+                        if FLAG['cancel']:
+                            FLAG['cancel'] = 0
+                            break
+                        yield ret
+                except Exception as e:
+                    raise gr.Error(e)
+                finally:
+                    FLAG['running'] = 0
+            return wrapper
+        
+        @check_running
         def on_submit(option, sub_option, human_feedback):
-            if FLAG['running'] == 1:
-                gr.Info("当前有操作正在进行，请稍后再试！")
-                return
-            elif not option:
+            if not option:
                 gr.Info("请先选择操作！")
                 return
-            else:
-                FLAG['running'] = 1
-            def check_cancel():
-                if FLAG['cancel']:
-                    FLAG['cancel'] = 0
-                    FLAG['running'] = 0
-                    return True
-                else:
-                    return False
               
             match option:
                 case '创作小说设定':
                     for messages in get_writer().init_outline_setting(human_feedback=human_feedback):
-                        if check_cancel():return
                         yield messages2chatbot(messages), generate_cost_info(messages)
                 case '创作分卷剧情':
                     for messages in get_writer().init_outline_volumes(human_feedback=human_feedback):
-                        if check_cancel():return
                         yield messages2chatbot(messages), generate_cost_info(messages)
-            FLAG['running'] = 0
         
         def save():
             lngpt.save(volume_name, chapter_name)
@@ -147,12 +152,7 @@ def tab_outline_writer(config):
         def on_cost_change(model, option, sub_option, human_feedback):
             get_writer().set_model(model)
             if option:
-                try:
-                    messages, cost_info = next(on_submit(option, sub_option, human_feedback))
-                except Exception as e:
-                    raise e
-                finally:
-                    FLAG['running'] = 0
+                messages, cost_info = next(on_submit(option, sub_option, human_feedback))
                 return messages, cost_info
             else:
                 return None, None
