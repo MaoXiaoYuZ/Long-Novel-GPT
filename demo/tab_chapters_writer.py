@@ -96,21 +96,27 @@ def tab_chapters_writer(config):
         rollback_button = gr.Button("撤销")
 
         chatbot = gr.Chatbot()
+        def check_running(func):
+            def wrapper(*args, **kwargs):
+                if FLAG['running'] == 1:
+                    gr.Info("当前有操作正在进行，请稍后再试！")
+                    return
 
-        def on_submit(option, sub_option, human_feedback):
-            if FLAG['running'] == 1:
-                gr.Info("当前有操作正在进行，请稍后再试！")
-                return
-            else:
                 FLAG['running'] = 1
-            def check_cancel():
-                if FLAG['cancel']:
-                    FLAG['cancel'] = 0
+                try:
+                    for ret in func(*args, **kwargs):
+                        if FLAG['cancel']:
+                            FLAG['cancel'] = 0
+                            break
+                        yield ret
+                except Exception as e:
+                    raise gr.Error(e)
+                finally:
                     FLAG['running'] = 0
-                    return True
-                else:
-                    return False
-            
+            return wrapper
+        
+        @check_running
+        def on_submit(option, sub_option, human_feedback):
             if sub_option == '全部章节':
                 sub_option = None
             else:
@@ -119,13 +125,10 @@ def tab_chapters_writer(config):
             match option:
                 case "新建章节剧情":
                     for messages in get_writer().init_chapters(human_feedback=human_feedback):
-                        if check_cancel():return
                         yield messages2chatbot(messages), generate_cost_info(messages)
                 case "优化章节剧情":
                     for messages in get_writer().refine_chatpers(chapter_name=sub_option, human_feedback=human_feedback):
-                        if check_cancel():return
                         yield messages2chatbot(messages), generate_cost_info(messages)
-            FLAG['running'] = 0
         
         def save():
             lngpt.save(lngpt.layers['cur_volume_name'], chapter_name)
@@ -148,12 +151,7 @@ def tab_chapters_writer(config):
         def on_cost_change(model, option, sub_option, human_feedback):
             get_writer().set_model(model)
             if option and sub_option:
-                try:
-                    messages, cost_info = next(on_submit(option, sub_option, human_feedback))
-                except Exception as e:
-                    raise e
-                finally:
-                    FLAG['running'] = 0
+                messages, cost_info = next(on_submit(option, sub_option, human_feedback))
                 return messages, cost_info
             else:
                 return None, None
