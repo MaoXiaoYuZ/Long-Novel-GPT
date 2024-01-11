@@ -11,7 +11,7 @@ Long-Novel-GPT是一个基于GPT等大语言模型的长篇小说生成器。它
 - **反思循环**：在不断的反思中优化生成的大纲、章节和正文内容。
 - **成本优化**：通过上下文管理优化API调用成本，确保每次API调用的费用固定，不会因反思次数增加而上升。
 
-![Alt text](assets\lngpt_pipeline.png "Long Novel GPT Pipeline")
+![关键特性](assets/lngpt_pipeline.png "Long Novel GPT Pipeline")
 
 ## 快速上手
 
@@ -36,7 +36,7 @@ Gradio DEMO中有5个Tab页面，分别为：
 - **生成正文**：在此编写小说的具体内容。
 - **设置**：在这里设置OpenAI API以及一些生成小说的参数。
 
-![Alt text](assets\demo_preview.jpg "Demo Preivew")
+![Gradio DEMO有5个Tab页面](assets/demo_preview.jpg "Demo Preivew")
 
 ### 使用指南
 1. GPT-3.5可能不足以生成达到签约或出版水平的小说，请优先选择GPT-4 API。
