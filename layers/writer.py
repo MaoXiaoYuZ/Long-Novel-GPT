@@ -6,27 +6,9 @@ from glob import glob
 from itertools import chain
 from collections import Counter
 
-# import sys
-# sys.path.append(os.path.abspath(os.path.join(__file__, '../..')))   
-
-from llm_api.openai_api import num_tokens_from_messages, count_gpt_api_cost, stream_chat_with_gpt
-
-class ChatMessages(list):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.model = kwargs['model'] if 'model' in kwargs else None
-        self.cost = kwargs['cost'] if 'cost' in kwargs else None
-    
-    def __getitem__(self, index):
-        result = super().__getitem__(index)
-        if isinstance(index, slice):
-            return ChatMessages(result, model=self.model, cost=self.cost)
-        return result
-    
-    def __add__(self, other):
-        if isinstance(other, list):
-            return ChatMessages(super().__add__(other), model=self.model, cost=self.cost)
-        return NotImplemented 
+from llm_api.chat_messages import ChatMessages
+from llm_api.openai_api import stream_chat_with_gpt
+from llm_api.baidu_api import stream_chat_with_wenxin
 
 
 class Writer:
@@ -64,7 +46,12 @@ class Writer:
     def set_meta_info(self, meta_info):
         self.meta_info = meta_info
     
-    def set_model(self, model, sub_model='gpt-3.5-turbo-1106'):
+    def set_model(self, model, sub_model='auto'):
+        if sub_model == 'auto':
+            if 'gpt' in model:
+                sub_model = 'gpt-3.5-turbo-1106'
+            elif 'ERNIE' in model:
+                sub_model = 'ERNIE-Bot'
         self.set_config(model=model, sub_model=sub_model)
     
     def get_model(self):
@@ -85,7 +72,7 @@ class Writer:
             print(msg['content'])
     
     def count_messages_length(self, messages):
-        return sum([len(msg['content']) for msg in messages])
+        return messages.get_estimated_tokens()
     
     def string_in_messages(self, string, messages):
         return any([string in msg['content'] for msg in messages])
@@ -116,31 +103,14 @@ class Writer:
     def get_context_elements_in_list(self, ele, l, context_length=1):
         index = l.index(ele)
         return l[max(0, index-context_length):min(len(l), index+context_length+1)]
-    
-    def count_context_cost(self, messages, model):
-        context_tokens = num_tokens_from_messages(messages)
-        return count_gpt_api_cost(model, context_tokens, 0)
-    
-    def count_completion_cost(self, completion, model):
-        if not isinstance(completion, list):
-            completion = [completion, ]
-            
-        completion_tokens = num_tokens_from_messages([{'role': 'assistant', 'content': completion[0]}, ]) * len(completion) # 快速估计
 
-        return count_gpt_api_cost(model, 0, completion_tokens)
-    
-    def chat(self, messages, model=None, max_tokens=4000, response_format={ "type": "json_object" }, n=1):
+    def chat(self, messages, model=None, max_tokens=4000, response_json=False, n=1):
         if model is None: model = self.get_model()
-        messages = ChatMessages(messages, model=model)
-        context_cost = self.count_context_cost(messages, model)
-        messages.cost = context_cost
-        yield messages
-        messages.append({'role': 'assistant', 'content': ''})
-        for response in stream_chat_with_gpt(messages, model=model, max_tokens=max_tokens, response_format=response_format, n=n):
-            messages[-1]['content'] = response
-            messages.cost = context_cost + self.count_completion_cost(response, model=model)
-            yield messages
-    
+        if 'gpt' in model:
+            yield from stream_chat_with_gpt(messages, model=model, max_tokens=max_tokens, response_json=response_json, n=n)
+        elif 'ERNIE' in model:
+            yield from stream_chat_with_wenxin(messages, model=model, response_json=response_json)
+
     def json_dumps(self, json_object):
         return json.dumps(json_object, ensure_ascii=False, indent=1)
     
@@ -192,7 +162,7 @@ class Writer:
 """
         messages = messages + [{'role': 'user', 'content': prompt}, ]
 
-        for response_msgs in self.chat(messages, model=self.get_model(), response_format={ "type": "json_object"}):
+        for response_msgs in self.chat(messages, model=self.get_model(), response_json=True):
             #yield prev_messages + response_msgs + next_messages
             yield response_msgs
 
@@ -202,8 +172,8 @@ class Writer:
 
         yield prev_messages + context_messages + next_messages
     
-    def vote(self, messages, n, response_format=None):
-        for response_msgs in self.chat(messages, model=self.get_sub_model(), response_format=response_format, n=n):
+    def vote(self, messages, n, response_json=None):
+        for response_msgs in self.chat(messages, model=self.get_sub_model(), response_json=response_json, n=n):
             if n > 1:
                 new_response_msgs = response_msgs[:-1] + [{'role': 'user', 'content': response_msgs[-1]['content'][0]}]
                 new_response_msgs.cost = response_msgs.cost
@@ -216,8 +186,3 @@ class Writer:
             response_msgs[-1]['content'] = common_content
 
         yield response_msgs
-
-
-
-if __name__ == '__main__':
-    writer = Writer('我是系统提示', 'output/test', 'gpt-3.5-turbo-1106', 'gpt-3.5-turbo-1106')

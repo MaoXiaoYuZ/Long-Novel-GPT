@@ -1,7 +1,7 @@
 import json
 import gradio as gr
 
-from demo.gr_utils import messages2chatbot, block_diff_text
+from demo.gr_utils import messages2chatbot, block_diff_text, create_model_radio
 
 def tab_novel_writer(config):
     lngpt = config['lngpt']
@@ -64,8 +64,7 @@ def tab_novel_writer(config):
                 label="选择你要进行的操作",
                 value=value,
             )
-        model = gr.Radio(choices=[('gpt-3.5-turbo', 'gpt-3.5-turbo-1106'), ('gpt-4-turbo', 'gpt-4-1106-preview')], label="选择模型")
-        
+        model = create_model_radio()        
         option = gr.Radio()
 
         def create_sub_option(option_value):
@@ -88,7 +87,8 @@ def tab_novel_writer(config):
 
         def generate_cost_info(cur_messages):
             cost = cur_messages.cost
-            return gr.Markdown(f"当前操作预计消耗：{cost:.4f}$")
+            currency_symbol = cur_messages.currency_symbol
+            return gr.Markdown(f"当前操作预计消耗：{cost:.4f}{currency_symbol}")
 
         cost_info = gr.Markdown('当前操作预计消耗：0$')
         start_button = gr.Button("开始")

@@ -1,9 +1,6 @@
 import re
 import json
 
-import sys
-sys.path.append(r'D:\Documents\VSCode\Novel-HE-GPT')
-
 from layers.writer import Writer
 
 class OutlineWriter(Writer):
@@ -132,7 +129,7 @@ class OutlineWriter(Writer):
         user_prompt = inputs + f"指示：{human_feedback}"    
         messages.append({'role':'user', 'content': user_prompt})    
         
-        for response_msgs in self.chat(messages, response_format={ "type": "json_object" }):
+        for response_msgs in self.chat(messages, response_json=True):
             yield response_msgs
         
         context_messages = response_msgs
@@ -144,13 +141,3 @@ class OutlineWriter(Writer):
 
         yield context_messages
     
-
-if __name__ == '__main__':
-    writer = OutlineWriter(prev_outline=None, prev_plot=None, model="gpt-3.5-turbo-1106", output_path='output/outline_writer_test')
-    for msgs in writer.init_outline_setting(human_feedback="小说标题为《商业大亨穿越到哈利波特世界》"):
-        pass
-    writer.print_messages(msgs)
-    print('XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
-    for msgs in writer.init_outline_volumes(human_feedback=None):
-        pass
-    writer.print_messages(msgs)

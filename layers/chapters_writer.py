@@ -3,7 +3,6 @@ import json
 
 from layers.writer import Writer
 
-
 class ChaptersWriter(Writer):
     def __init__(self, output_path, model='gpt-4-1106-preview', sub_model="gpt-3.5-turbo-1106"):
         system_prompt = "我会给你小说的大纲以及某一卷的剧情，需要你创作该卷的分章剧情。你需要遵从我的指令，让我们一起一步步进行章节剧情的创作。首先，我们会创作分章剧情，然后再对每章的剧情进行扩充。同时，对于你创作的剧情，我会要求你反思或根据我给出的意见进行修改。"
@@ -49,7 +48,7 @@ class ChaptersWriter(Writer):
         chat_id = 'init_chapters'
         messages = self.get_chat_history(chat_id, resume=False)
         messages.append({'role':'user', 'content':user_prompt})
-        for response_msgs in self.chat(messages, response_format={ "type": "json_object" }):
+        for response_msgs in self.chat(messages, response_json=True):
             yield response_msgs
         response = response_msgs[-1]['content']
         response_json = json.loads(response)
@@ -103,7 +102,7 @@ class ChaptersWriter(Writer):
         else:
             messages.append({'role':'user',  'content': prompt})
             
-        for response_msgs in self.chat(messages, response_format={ "type": "json_object" }):
+        for response_msgs in self.chat(messages, response_json=True):
             yield response_msgs
         response = response_msgs[-1]['content']
 
