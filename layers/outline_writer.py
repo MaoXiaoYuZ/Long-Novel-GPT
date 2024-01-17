@@ -80,7 +80,8 @@ class OutlineWriter(Writer):
                 if setting_name in self.outline:
                     del self.outline[setting_name]
             elif setting_content['操作'] == '保留':
-                pass
+                if '描述' in setting_content:
+                    self.outline[setting_name] = setting_content['描述']
 
     def init_outline_volumes(self, human_feedback=None):
         instruction = \

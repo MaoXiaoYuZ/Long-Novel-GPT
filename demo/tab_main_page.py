@@ -62,11 +62,11 @@ def tab_main_page(config):
         if option == '新建小说':
             if not inputs:
                 gr.Info("请输入小说名")
-                #return None, None, None, None
+                return
             exists_options = get_available_input_options()
             if inputs in exists_options:
                 gr.Info(f"小说名：{inputs}已经存在，请重新输入")
-                #return None, None, None, None
+                return
             lngpt = get_lngpt_by_inputs(inputs)
             if inputs not in details:
                 details = f"{inputs}\n{details}"
@@ -80,7 +80,7 @@ def tab_main_page(config):
             lngpt.save()
         else:
             gr.Info("请选择操作")
-            #return None, None, None, None
+            return
         
         config['lngpt'] = lngpt
         config['novel_name'] = inputs
