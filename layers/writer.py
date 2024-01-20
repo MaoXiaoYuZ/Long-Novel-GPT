@@ -7,7 +7,7 @@ from itertools import chain
 from collections import Counter
 
 from llm_api.chat_messages import ChatMessages
-from llm_api.openai_api import stream_chat_with_gpt
+from llm_api.openai_api import stream_chat_with_gpt, stream_function_calling_with_gpt
 from llm_api.baidu_api import stream_chat_with_wenxin
 
 
@@ -107,9 +107,20 @@ class Writer:
     def chat(self, messages, model=None, max_tokens=4000, response_json=False, n=1):
         if model is None: model = self.get_model()
         if 'gpt' in model:
-            yield from stream_chat_with_gpt(messages, model=model, max_tokens=max_tokens, response_json=response_json, n=n)
+            ret = yield from stream_chat_with_gpt(messages, model=model, max_tokens=max_tokens, response_json=response_json, n=n)
         elif 'ERNIE' in model:
-            yield from stream_chat_with_wenxin(messages, model=model, response_json=response_json)
+            ret = yield from stream_chat_with_wenxin(messages, model=model, response_json=response_json)
+        else:
+            raise NotImplementedError(f"未知的model:{model}！")
+        return ret
+
+    def function_chat(self, messages, tools, model=None, max_tokens=4000):
+        if model is None: model = self.get_model()
+        if 'gpt' in model:
+            messages, content, function_calls = yield from stream_function_calling_with_gpt(messages, tools, model=model, max_tokens=max_tokens)
+            return messages, content, function_calls
+        elif 'ERNIE' in model:
+            raise NotImplementedError('此功能暂不支持文心模型！')
 
     def json_dumps(self, json_object):
         return json.dumps(json_object, ensure_ascii=False, indent=1)
@@ -170,7 +181,7 @@ class Writer:
         context_messages.append({'role': 'user', 'content': prompt})
         context_messages.append(response_msgs[-1])
 
-        yield prev_messages + context_messages + next_messages
+        return prev_messages + context_messages + next_messages
     
     def vote(self, messages, n, response_json=None):
         for response_msgs in self.chat(messages, model=self.get_sub_model(), response_json=response_json, n=n):
@@ -185,4 +196,87 @@ class Writer:
             common_content = Counter(response_msgs[-1]['content']).most_common(1)[0][0]
             response_msgs[-1]['content'] = common_content
 
-        yield response_msgs
+        return response_msgs
+    
+    def prompt_polish(self, messages, text):
+        assert messages[-1]['role'] == 'user'
+
+        prompt = messages[-1]['content']
+        messages = messages[:-1] + [
+            {
+            'role':'user', 
+            'content': prompt + "\n\n" + \
+"""请严格按照下面JSON格式输出：
+{
+ "思考": "<进行思考>",
+ "修正一": {
+  "问题分析": "<分析存在的问题>",
+  "改进方式": "<填 在参考文本前插入/在参考文本后插入/替换参考文本>",
+  "参考文本": "<这里给出参考的句子或片段>",
+  "改进方案": "<这里分析要如何改进>",
+  "修正文本": "<这里输出需要插入/替换的文本>"
+ },
+ //列出更多修正，修正二，修正三，等
+}
+"""
+        }]
+
+        response_msgs = yield from self.chat(messages, response_json=True)
+        response = response_msgs[-1]['content']
+        response_json = json.loads(response)
+
+        response_parser_msgs, replaced_text  = yield from self._prompt_polish_parser(text, response_json)
+
+        context_messages = response_msgs[:-1]
+        context_messages[-1]['content'] = prompt
+        for v in response_json.values():
+            if isinstance(v, dict):
+                for k in ['修正文本', '参考文本', '改进方式']:
+                    if k in v:
+                        del v[k]
+        context_messages.append({'role':'assistant', 'content': self.json_dumps(response_json) + "\n\n以下是改进后的文本：（已省略）"})
+        yield context_messages
+
+        return context_messages, replaced_text
+    
+    def _prompt_polish_parser(self, text, response):
+        context_messages = [
+            {
+                'role':'user', 
+                'content': self.json_dumps({'输入文本': text}) + '\n\n' + f"意见：{response}"
+            }]
+        
+        def replace(replace_method, reference_text, insert_text):
+            nonlocal text
+            if replace_method == '在参考文本前插入':
+                text = text.replace(reference_text, insert_text + reference_text)
+            elif replace_method == '在参考文本后插入':
+                text = text.replace(reference_text, reference_text + insert_text)
+            elif replace_method == '替换参考文本':
+                text = text.replace(reference_text, insert_text)
+            else:
+                print(f"ERROR:无法识别的改进方式{replace_method}！")
+        
+        cost = 0
+        for k, v in response.items():
+            if isinstance(v, dict) and '修正文本' in v and '参考文本' in v and '改进方式' in v:
+                ref_text, replace_text, replace_method = v['参考文本'], v['修正文本'], v['改进方式']
+                if ref_text in text:
+                    replace(replace_method, ref_text, replace_text)
+                else:
+                    prompt = f"\n\n请问上述意见中：“{ref_text}”在原文中的对应句是什么，请以如下JSON格式回复。" + '{"对应句":"..."}'        
+                    for i in range(3):
+                        messages = [{'role':'user', 'content': context_messages[-1]['content'] + prompt}, ]
+                        for response_msgs in self.chat(messages, model=self.get_sub_model(), response_json=True):
+                            yield response_msgs
+                        cost += response_msgs.cost
+                        ref_text = json.loads(response_msgs[-1]['content'])['对应句']
+                        if ref_text in text:
+                            replace(replace_method, ref_text, replace_text)
+                            break
+                    else:
+                        print(f"ERROR:无法找到{ref_text}在原文中的对应句！")
+        
+        return ChatMessages(context_messages + [{'role':'assistant', 'content': text}], model=self.get_sub_model(), cost=cost, currency_symbol=''), text
+
+

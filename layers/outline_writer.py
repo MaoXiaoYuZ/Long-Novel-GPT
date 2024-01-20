@@ -136,8 +136,7 @@ class OutlineWriter(Writer):
         context_messages = response_msgs
         context_messages[-2]['content'] = f"指示：{human_feedback}"
         if self.count_messages_length(context_messages[1:-2]) > self.get_config('chat_context_limit'):
-            for context_messages in self.summary_messages(context_messages, [1, len(context_messages)-2]):
-                yield context_messages
+            context_messages = yield from self.summary_messages(context_messages, [1, len(context_messages)-2])
         self.chat_history[chat_id] = context_messages
 
         yield context_messages

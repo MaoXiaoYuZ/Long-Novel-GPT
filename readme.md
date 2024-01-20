@@ -13,6 +13,9 @@ Long-Novel-GPT是一个基于GPT等大语言模型的长篇小说生成器。它
 
 ![关键特性](assets/lngpt_pipeline.png "Long Novel GPT Pipeline")
 
+## 更新日志
+- 2024.1.20：<生成章节>页面支持润色，可以单独对字段进行修改。
+
 ## 快速上手
 
 ### 安装

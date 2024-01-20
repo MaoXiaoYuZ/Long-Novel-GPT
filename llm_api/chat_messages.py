@@ -40,3 +40,6 @@ class ChatMessages(list):
                 chinese_count, english_count, other_count = count_characters(value)
                 num_tokens += chinese_count + english_count // 5 + other_count
         return num_tokens
+    
+    def copy(self):
+        return ChatMessages(self, model=self.model, cost=self.cost, currency_symbol=self.currency_symbol)

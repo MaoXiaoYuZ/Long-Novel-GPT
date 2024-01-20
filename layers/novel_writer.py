@@ -41,7 +41,7 @@ class NovelWriter(Writer):
         context_messsages[-1]['content'] = "(已省略)"
         self.chat_history[chat_id] = context_messsages
     
-    def refine_text(self, human_feedback=None):
+    def polish_text(self, human_feedback=None):
         if not human_feedback:
             human_feedback = "请从不符合逻辑，不符合人设，不符合大纲等方面进行反思。"
 
@@ -49,80 +49,16 @@ class NovelWriter(Writer):
         messages = self.get_chat_history(chat_id, inherit='init_text')
 
         input_text = '已省略，见上文。' if self.string_in_messages(self.text, messages) else self.text
-        messages.append({
-            'role':'user', 
-            'content': f"正文：{input_text}\n\n意见：{human_feedback}\n\n" + \
-"""请根据意见对正文进行反思, 再改进。
-请严格按照下面JSON格式输出：
-{
- "反思": "<根据意见进行反思>",
- "修正一": {
-  "问题分析": "<分析正文中存在的问题>",
-  "参考文本": "<这里给出参考剧情中的句子或片段>",
-  "改进方案": "<这里分析要如何改进>",
-  "修正文本": "<这里输出改进后的文本>"
- },
- //列出更多修正，修正二，修正三，等
-}
-"""
-        })
-
-        for response_msgs in self.chat(messages, response_json=True):
-            yield response_msgs
-        response = response_msgs[-1]['content']
-        response_json = json.loads(response)
-
-        for response_revise_msgs in self.replace_text_by_review(self.text, response_json):
-            yield response_revise_msgs
-
-        corrected_chapter_detail = response_revise_msgs[-1]['content']
+        messages.append({"role": "user", "content": f"正文：{input_text}\n\n意见：{human_feedback}\n\n请根据意见对正文进行反思，再改进。"})
+        context_messages, corrected_chapter_detail = yield from self.prompt_polish(messages, self.text)
 
         self.text = corrected_chapter_detail
 
-        context_messages = response_msgs[:-2]
-        context_messages.append({'role':'user', 'content': f"意见：{human_feedback}\n\n请根据意见对正文进行反思。"})
-        for v in response_json.values():
-            if isinstance(v, dict):
-                if '修正文本' in v and '参考文本' in v:
-                    del v['修正文本']
-                    del v['参考文本']
-        context_messages.append({'role':'assistant', 'content': self.json_dumps(response_json)})
-        context_messages.append({'role':'user', 'content': "很好，请根据反思内容，重新输出正文。"})
-        context_messages.append({'role':'assistant', 'content': f"修改后的正文:\n(已省略)"})
+        context_messages[len(messages)-1]['content'] = f"意见：{human_feedback}\n\n请根据意见对正文进行反思，再改进。"
         if self.count_messages_length(context_messages[1:-4]) > self.get_config('chat_context_limit'):
-            for context_messages in self.summary_messages(context_messages, [1, len(context_messages)-4]):
-                yield context_messages
+            context_messages = yield from self.summary_messages(context_messages, [1, len(context_messages)-4])
 
         self.chat_history[chat_id] = context_messages
 
         yield context_messages
-    
-    def replace_text_by_review(self, text, review):
-        context_messages = [
-            {
-                'role':'user', 
-                'content': self.json_dumps({'输入文本': text}) + '\n\n' + f"意见：{review}"
-            }]
-        
-        cost = 0
-        for k, v in review.items():
-            if isinstance(v, dict) and '修正文本' in v and '参考文本' in v:
-                ref_text, replace_text = v['参考文本'], v['修正文本']
-                if ref_text in text:
-                    text = text.replace(ref_text, replace_text)
-                else:
-                    prompt = f"\n\n请问上述意见中：“{ref_text}”在原文中的对应句是什么，请以如下JSON格式回复。" + '{"对应句":"..."}'        
-                    for i in range(3):
-                        messages = [{'role':'user', 'content': context_messages[-1]['content'] + prompt}, ]
-                        for response_msgs in self.chat(messages, model=self.get_sub_model(), response_json=True):
-                            yield response_msgs
-                        cost += response_msgs.cost
-                        ref_text = json.loads(response_msgs[-1]['content'])['对应句']
-                        if ref_text in text:
-                            text = text.replace(ref_text, replace_text)
-                            break
-                    else:
-                        print(f"ERROR:无法找到{ref_text}在原文中的对应句！")
-        
-        yield ChatMessages(context_messages + [{'role':'assistant', 'content': text}], model=self.get_sub_model(), cost=cost, currency_symbol='')
 

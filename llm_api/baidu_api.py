@@ -58,9 +58,9 @@ def stream_chat_with_wenxin(messages, model='ERNIE-Bot', response_json=False):
 
         if match:
             messages[-1]['content'] = match.group(1)
-            yield messages
         else:
             raise Exception('无法解析文心一言返回结果！')
+    return messages
 
 def test_wenxin_api():
     report = 'User:回答这是一个测试。\n'
