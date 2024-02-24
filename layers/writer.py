@@ -9,13 +9,14 @@ from collections import Counter
 from llm_api.chat_messages import ChatMessages
 from llm_api.openai_api import stream_chat_with_gpt, stream_function_calling_with_gpt
 from llm_api.baidu_api import stream_chat_with_wenxin
+from llm_api.chatgpt_api import stream_chat_with_chatgpt, match_first_json_block
 
 
 class Writer:
     def __init__(self, system_prompt, output_path, model, sub_model):
         self.output_path = output_path
 
-        self.config = {'chat_context_limit': 2000}
+        self.config = {'chat_context_limit': 2000, 'auto_compress_context': True, }
         
         self.system_prompt = system_prompt
         self.set_model(model, sub_model)
@@ -31,7 +32,7 @@ class Writer:
     def get_custom_system_prompt(self):
         return self.chat_history['custom_system_prompt'][0]['content']
     
-    def get_chat_history(self, chat_id, resume=True, inherit='system_messages'):
+    def get_chat_history(self, chat_id='main_chat', resume=True, inherit='system_messages'):
         if not resume or (chat_id not in self.chat_history):
             if inherit == 'system_messages':
                 return [{'role':'system', 'content': self.chat_history['system_messages'][0]['content'] + self.get_custom_system_prompt()}, ]
@@ -40,7 +41,10 @@ class Writer:
         else:
             return list(self.chat_history[chat_id])
     
-    def has_chat_history(self, chat_id):
+    def update_chat_history(self, messages, chat_id='main_chat'):
+        self.chat_history[chat_id] = messages
+    
+    def has_chat_history(self, chat_id='main_chat'):
         return chat_id in self.chat_history
     
     def set_meta_info(self, meta_info):
@@ -52,6 +56,8 @@ class Writer:
                 sub_model = 'gpt-3.5-turbo-1106'
             elif 'ERNIE' in model:
                 sub_model = 'ERNIE-Bot'
+            elif 'chatgpt' in model:
+                sub_model = 'gpt-3.5-turbo-1106'
         self.set_config(model=model, sub_model=sub_model)
     
     def get_model(self):
@@ -64,6 +70,10 @@ class Writer:
         self.config.update(**kwargs)
     
     def get_config(self, k):
+        if k == 'chat_context_limit' and 'chatgpt' in self.get_model():
+            return 100_000_000  # chatgpt不限制context长度
+        if k == 'auto_compress_context' and 'chatgpt' in self.get_model():
+            return False  # chatgpt不自动压缩context
         return self.config[k]
     
     def print_messages(self, messages):
@@ -106,7 +116,9 @@ class Writer:
 
     def chat(self, messages, model=None, max_tokens=4000, response_json=False, n=1):
         if model is None: model = self.get_model()
-        if 'gpt' in model:
+        if 'chatgpt' in model:
+            ret = yield from stream_chat_with_chatgpt(messages, model=model, max_tokens=max_tokens, response_json=response_json, n=n)
+        elif 'gpt' in model:
             ret = yield from stream_chat_with_gpt(messages, model=model, max_tokens=max_tokens, response_json=response_json, n=n)
         elif 'ERNIE' in model:
             ret = yield from stream_chat_with_wenxin(messages, model=model, response_json=response_json)
@@ -132,7 +144,15 @@ class Writer:
     def json_load(self, input_file):
         with open(input_file, 'r', encoding='utf-8') as f:
             return json.load(f)
-    
+        
+    def parse_json_block(self, response_msgs: ChatMessages):
+        model = response_msgs.model
+        assert response_msgs[-1]['role'] == 'assistant'
+        if 'chatgpt' in model:
+            return json.loads(match_first_json_block(response_msgs[-1]['content']))
+        else:
+            return json.loads(response_msgs[-1]['content'])
+        
     def get_attrs_needed_to_save(self):
         raise NotImplementedError()
     
@@ -227,14 +247,17 @@ class Writer:
 
         response_parser_msgs, replaced_text  = yield from self._prompt_polish_parser(text, response_json)
 
-        context_messages = response_msgs[:-1]
-        context_messages[-1]['content'] = prompt
-        for v in response_json.values():
-            if isinstance(v, dict):
-                for k in ['修正文本', '参考文本', '改进方式']:
-                    if k in v:
-                        del v[k]
-        context_messages.append({'role':'assistant', 'content': self.json_dumps(response_json) + "\n\n以下是改进后的文本：（已省略）"})
+        context_messages = response_msgs
+        if self.get_config('auto_compress_context'):
+            context_messages = response_msgs[:-1]
+            context_messages[-1]['content'] = prompt
+            for v in response_json.values():
+                if isinstance(v, dict):
+                    for k in ['修正文本', '参考文本', '改进方式']:
+                        if k in v:
+                            del v[k]
+            context_messages.append({'role':'assistant', 'content': self.json_dumps(response_json) + "\n\n以下是改进后的文本：（已省略）"})
+
         yield context_messages
 
         return context_messages, replaced_text

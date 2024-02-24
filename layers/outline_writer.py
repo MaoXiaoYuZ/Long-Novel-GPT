@@ -67,7 +67,7 @@ class OutlineWriter(Writer):
         for response_msgs in self.instruction_outline(instruction):
             yield response_msgs
         response = response_msgs[-1]['content']
-        response_json = json.loads(response)
+        response_json = self.parse_json_block(response_msgs)
 
         for setting_name, setting_content in response_json.items():
             if setting_name == "分析":
@@ -110,7 +110,7 @@ class OutlineWriter(Writer):
         for response_msgs in self.instruction_outline(instruction):
             yield response_msgs
         response = response_msgs[-1]['content']
-        response_json = json.loads(response)
+        response_json = self.parse_json_block(response_msgs)
 
         if '分卷剧情' not in self.outline:
             self.outline['分卷剧情'] = {}
@@ -118,8 +118,7 @@ class OutlineWriter(Writer):
         self.outline['分卷剧情'].update({k:{"剧情": v['剧情']} for k, v in response_json['分卷剧情'].items() if isinstance(v, dict)})
 
     def instruction_outline(self, human_feedback=None):
-        chat_id = 'instruction_outline'
-        messages = self.get_chat_history(chat_id)
+        messages = self.get_chat_history()
 
         if self.outline:
             inputs = self.comment_duplicate_inputs(self.outline, messages)
@@ -134,10 +133,12 @@ class OutlineWriter(Writer):
             yield response_msgs
         
         context_messages = response_msgs
-        context_messages[-2]['content'] = f"指示：{human_feedback}"
+        if self.get_config('auto_compress_context'):
+            context_messages[-2]['content'] = f"指示：{human_feedback}"
+        
         if self.count_messages_length(context_messages[1:-2]) > self.get_config('chat_context_limit'):
             context_messages = yield from self.summary_messages(context_messages, [1, len(context_messages)-2])
-        self.chat_history[chat_id] = context_messages
+        self.update_chat_history(context_messages)
 
         yield context_messages
     

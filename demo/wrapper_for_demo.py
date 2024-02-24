@@ -23,6 +23,8 @@ class Long_Novel_GPT_Wrapper(Long_Novel_GPT_DEMO):
         writer = super().get_writer(volume_name, chapter_name)
         if 'chat_context_limit' in self.writer_config:
             writer.set_config(chat_context_limit=self.writer_config['chat_context_limit'])
+        if 'auto_compress_context' in self.writer_config:
+            writer.set_config(auto_compress_context=self.writer_config['auto_compress_context'])
         return writer
         
     def save_checkpoints(self):
@@ -58,6 +60,10 @@ class Long_Novel_GPT_Wrapper(Long_Novel_GPT_DEMO):
                 layer['curr_checkpoint_i'] = v2['curr_checkpoint_i']
                 layer['writer'].load(os.path.join(layer['writer'].output_path, ".checkpoints", f"checkpoint_{layer['curr_checkpoint_i']}"))
 
+    def get_cur_checkpoint_i(self, volume_name=None, chapter_name=None):
+        layer = self.get_layer(volume_name, chapter_name)
+        return layer['curr_checkpoint_i']
+    
     def save(self, volume_name=None, chapter_name=None):
         layer = self.get_layer(volume_name, chapter_name)
         writer, cur_checkpoint_i = layer['writer'], layer['curr_checkpoint_i'] + 1

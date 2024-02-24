@@ -45,29 +45,27 @@ class ChaptersWriter(Writer):
  },
  //更多章节，每一章连着前一章
 }"""    
-        chat_id = 'init_chapters'
-        messages = self.get_chat_history(chat_id, resume=False)
+        messages = self.get_chat_history(resume=False)
         messages.append({'role':'user', 'content':user_prompt})
         for response_msgs in self.chat(messages, response_json=True):
             yield response_msgs
         response = response_msgs[-1]['content']
-        response_json = json.loads(response)
+        response_json = self.parse_json_block(response_msgs)
         self.chapters = {k:{'剧情': v['剧情']} for k, v in response_json.items() if isinstance(v, dict)}
 
         context_messages = response_msgs
-        context_messages[-2]['content'] = "现在开始创作该卷的分章剧情。要注意你创作的是章节剧情梗概，不是正文，不要描述过于细节的东西。\n" + f"意见：{human_feedback}"
-        self.chat_history[chat_id] = context_messages
-        if 'refine_chapters' in self.chat_history:
-            del self.chat_history['refine_chapters']
+        if self.get_config('auto_compress_context'):
+            context_messages[-2]['content'] = "现在开始创作该卷的分章剧情。要注意你创作的是章节剧情梗概，不是正文，不要描述过于细节的东西。\n" + f"意见：{human_feedback}"
         
+        self.update_chat_history(context_messages)
+
         yield context_messages
     
     def rewrite_chatpers(self, chapter_name=None, human_feedback=None):
         if not human_feedback:
             human_feedback = "请从情节推动不合理，剧情不符合逻辑，条理不清晰等方面进行反思。"
 
-        chat_id = 'refine_chapters'
-        messages = self.get_chat_history(chat_id, inherit='init_chapters')
+        messages = self.get_chat_history()
 
         if chapter_name is None:
             input_chapters = self.comment_duplicate_inputs(self.chapters, messages)
@@ -101,23 +99,24 @@ class ChaptersWriter(Writer):
         response_msgs = yield from self.chat(messages, response_json=True)
         response = response_msgs[-1]['content']
 
-        response_json = json.loads(response)
+        response_json = self.parse_json_block(response_msgs)
         for title, detail in response_json.items():
             if title in self.chapters:
                 self.chapters[title].update({'剧情': detail['剧情']})
                 del detail['剧情']
         
         context_messages = response_msgs
-        context_prompt = f"意见：{human_feedback}\n\n你需要先根据意见对分章剧情进行反思，再给出新的剧情。"
-        if chapter_name is not None:
-            context_prompt = context_prompt.replace('分章剧情', chapter_name + "剧情")
-        context_messages[len(messages)-1]['content'] = context_prompt
-        context_messages[len(messages)]['content'] = self.json_dumps(response_json)
+        if self.get_config('auto_compress_context'):
+            context_prompt = f"意见：{human_feedback}\n\n你需要先根据意见对分章剧情进行反思，再给出新的剧情。"
+            if chapter_name is not None:
+                context_prompt = context_prompt.replace('分章剧情', chapter_name + "剧情")
+            context_messages[len(messages)-1]['content'] = context_prompt
+            context_messages[len(messages)]['content'] = self.json_dumps(response_json)
 
         if self.count_messages_length(context_messages[1:-2]) > self.get_config('chat_context_limit'):
             context_messages = yield from self.summary_messages(context_messages, [1, len(context_messages)-2])
 
-        self.chat_history[chat_id] = context_messages
+        self.update_chat_history(context_messages)
 
         yield context_messages
     
@@ -125,8 +124,7 @@ class ChaptersWriter(Writer):
         if not human_feedback:
             human_feedback = "请从情节推动不合理，剧情不符合逻辑，条理不清晰等方面进行反思。"
 
-        chat_id = 'refine_chapters'
-        messages = self.get_chat_history(chat_id, inherit='init_chapters')
+        messages = self.get_chat_history()
 
         context_chapter_names = self.get_context_elements_in_list(chapter_name, self.get_chapter_names(), context_length=1)
         input_chapters = self.comment_duplicate_inputs({k:v for k,v in self.chapters.items() if k in context_chapter_names}, messages)
@@ -140,11 +138,12 @@ class ChaptersWriter(Writer):
         self.chapters[chapter_name]['剧情'] = new_chpater_text
         
         context_messages = response_msgs
-        context_messages[len(messages)-1]['content'] = f"意见：{human_feedback}\n\n你需要先根据意见对{chapter_name}剧情进行反思，再对{chapter_name}剧情进行改进。"
+        if self.get_config('auto_compress_context'):
+            context_messages[len(messages)-1]['content'] = f"意见：{human_feedback}\n\n你需要先根据意见对{chapter_name}剧情进行反思，再对{chapter_name}剧情进行改进。"
 
         if self.count_messages_length(context_messages[1:-2]) > self.get_config('chat_context_limit'):
             context_messages = yield from self.summary_messages(context_messages, [1, len(context_messages)-2])
 
-        self.chat_history[chat_id] = context_messages
+        self.update_chat_history(context_messages)
 
         yield context_messages

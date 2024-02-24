@@ -48,7 +48,7 @@ def tab_outline_writer(config):
 
         def create_option(value):
             available_options = ["创作小说设定", ]
-            if get_writer().has_chat_history('instruction_outline'):
+            if get_writer().has_chat_history():
                 available_options.append("创作分卷剧情")
 
             return gr.Radio(
@@ -143,14 +143,18 @@ def tab_outline_writer(config):
                 gr.Info("已暂停当前操作！")
                 return
 
-            if rollback(1):
+            if lngpt.get_cur_checkpoint_i(volume_name, chapter_name) > 0:   # 为了保证system_details不被删除
+                assert rollback(1), '未知错误'
                 gr.Info("撤销成功！")
             else:
                 gr.Info("已经是最早的版本了")
         
         @gr.on(triggers=[model.select, option.select, human_feedback.change], inputs=[model, option, sub_option, human_feedback], outputs=[chatbot, cost_info])
         def on_cost_change(model, option, sub_option, human_feedback):
-            get_writer().set_model(model)
+            if model: 
+                get_writer().set_model(model)
+            else:
+                return None, None
             if option:
                 messages, cost_info = next(on_submit(option, sub_option, human_feedback))
                 return messages, cost_info

@@ -54,7 +54,7 @@ def tab_chapters_writer(config):
 
         def create_option(value):
             available_options = ["新建章节剧情", ]
-            if get_writer().has_chat_history('init_chapters'):
+            if get_writer().has_chat_history():
                 available_options.append("重写章节剧情")
                 available_options.append("润色章节剧情")
 
@@ -155,7 +155,7 @@ def tab_chapters_writer(config):
         
         @gr.on(triggers=[model.select, sub_option.select, human_feedback.change], inputs=[model, option, sub_option, human_feedback], outputs=[chatbot, cost_info])
         def on_cost_change(model, option, sub_option, human_feedback):
-            get_writer().set_model(model)
+            if model: get_writer().set_model(model)
             if option and sub_option:
                 messages, cost_info = next(on_submit(option, sub_option, human_feedback))
                 return messages, cost_info
