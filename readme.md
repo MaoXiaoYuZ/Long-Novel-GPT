@@ -52,13 +52,9 @@ Gradio DEMO中有5个Tab页面，分别为：
 
 首先，您需要安装AutoChatScript。请访问[AutoChatScript GitHub 仓库](https://github.com/MaoXiaoYuZ/AutoChatScript)并按照安装说明进行操作。
 
-```bash
-git clone https://github.com/MaoXiaoYuZ/AutoChatScript.git
-```
-
 ### 2. 启动服务
 
-克隆仓库并安装完毕后，通过以下命令启动服务：
+安装完毕后，通过以下命令启动服务：
 
 ```bash
 cd AutoChatScript
