@@ -172,6 +172,14 @@ class Writer:
             if os.path.exists(attr_json_file):
                 setattr(self, attr, self.json_load(attr_json_file))
     
+    def discuss(self, prompt):
+        messages = self.get_chat_history()
+        messages.append({'role':'user', 'content': prompt})  
+        response_msgs = yield from self.chat(messages, response_json=True)
+        context_messages = response_msgs
+        self.update_chat_history(context_messages)
+        yield context_messages
+    
     def summary_messages(self, messages, range=None):
         if range is None: range = [0, len(messages)]
 
@@ -242,8 +250,7 @@ class Writer:
         }]
 
         response_msgs = yield from self.chat(messages, response_json=True)
-        response = response_msgs[-1]['content']
-        response_json = json.loads(response)
+        response_json = self.parse_json_block(response_msgs)
 
         response_parser_msgs, replaced_text  = yield from self._prompt_polish_parser(text, response_json)
 
@@ -290,10 +297,9 @@ class Writer:
                     prompt = f"\n\n请问上述意见中：“{ref_text}”在原文中的对应句是什么，请以如下JSON格式回复。" + '{"对应句":"..."}'        
                     for i in range(3):
                         messages = [{'role':'user', 'content': context_messages[-1]['content'] + prompt}, ]
-                        for response_msgs in self.chat(messages, model=self.get_sub_model(), response_json=True):
-                            yield response_msgs
+                        response_msgs = yield from self.chat(messages, model=self.get_sub_model(), response_json=True)
                         cost += response_msgs.cost
-                        ref_text = json.loads(response_msgs[-1]['content'])['对应句']
+                        ref_text = self.parse_json_block(response_msgs)['对应句']
                         if ref_text in text:
                             replace(replace_method, ref_text, replace_text)
                             break

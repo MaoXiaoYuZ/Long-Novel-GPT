@@ -11,22 +11,16 @@ chatgpt_config = {
 }
 
 chatgpt_model_config = {
-    "chatgpt-4":{
+    "chatgpt":{
         "CONTEXT_WINDOW": 128_000,
         "Pricing": (0, 0),
-    },
-    "chatgpt-3.5":{
-        "CONTEXT_WINDOW": 16_385,
-        "Pricing": (0, 0),
-    },
+    }
 }
 
 client = None
 
 def set_chatgpt_api_config(**kwargs):
     global client
-    if 'base_url' in kwargs:
-        assert kwargs['base_url'].endswith('/v1/'), "base_url必须以'/v1/'结尾！"
     chatgpt_config.update(kwargs)
     client = OpenAI(**chatgpt_config)
 
@@ -39,7 +33,7 @@ import requests
 import ssl
 import certifi
 
-MODEL = "chatgpt-3.5-turbo"
+MODEL = "chatgpt"
 OPENAI_SECRET_KEY = "none"
 # Assuming MODEL and OPENAI_SECRET_KEY are defined earlier in your code.
 
@@ -57,7 +51,8 @@ def post_messages(messages):
         "Content-Type": "application/json",
         "Authorization": f"Bearer {OPENAI_SECRET_KEY}"
     }
-    
+    if 'base_url' in chatgpt_config:
+        assert chatgpt_config['base_url'].endswith('/v1/'), "base_url必须以'/v1/'结尾！"
     url = chatgpt_config['base_url'] + "chat/completions"
 
     try:
@@ -104,14 +99,9 @@ def match_first_json_block(response):
     else:
         raise Exception(f"没有匹配到JSON代码块")
 
-def stream_chat_with_chatgpt(messages, model='chatgpt-3.5-turbo-1106', max_tokens=4_096, response_json=False, n=1):
+def stream_chat_with_chatgpt(messages, model='chatgpt', max_tokens=4_096, response_json=False, n=1):
     if client is None:
         raise Exception('未配置openai_api！')
-    
-    if messages[0]['role'] == 'system':
-        assert messages[1]['role'] == 'user'
-        messages[1]['content'] = messages[0]['content'] + '\n\n' + messages[1]['content']
-        messages = messages[1:]
 
     messages = ChatMessages(messages, model=model, currency_symbol='$')
     messages.cost = 0

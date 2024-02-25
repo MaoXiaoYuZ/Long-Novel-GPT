@@ -53,7 +53,7 @@ def tab_chapters_writer(config):
             output = gr.Textbox(label="章节剧情", lines=10, interactive=False)
 
         def create_option(value):
-            available_options = ["新建章节剧情", ]
+            available_options = ["讨论", "新建章节剧情", ]
             if get_writer().has_chat_history():
                 available_options.append("重写章节剧情")
                 available_options.append("润色章节剧情")
@@ -73,6 +73,8 @@ def tab_chapters_writer(config):
                 return gr.Radio(["全部章节"] + get_writer().get_chapter_names(), label="选择章节", value='')
             elif option_value == '润色章节剧情':
                 return gr.Radio(get_writer().get_chapter_names(), label="选择章节", value='')
+            elif option_value == '讨论':
+                return gr.Radio(["全部章节"] + get_writer().get_chapter_names(), label="选择章节", value='')
 
         sub_option = gr.Radio()
 
@@ -81,6 +83,8 @@ def tab_chapters_writer(config):
                 return gr.Textbox(value="", label="你的意见：", lines=2, placeholder="让AI知道你的意见，这在优化阶段会更有用。")
             elif option_value == '重写章节剧情' or option_value == '润色章节剧情':
                 return gr.Textbox(value="请从情节推动不合理，剧情不符合逻辑，条理不清晰等方面进行反思。", label="你的意见：", lines=2)
+            elif option_value == '讨论':
+                return gr.Textbox(value="不要急于得出结论，让我们先一步一步的思考", label="你的意见：", lines=2)
 
         human_feedback = gr.Textbox()
 
@@ -126,6 +130,9 @@ def tab_chapters_writer(config):
                 sub_option = sub_option
                     
             match option:
+                case '讨论':
+                    for messages in get_writer().discuss(human_feedback):
+                        yield messages2chatbot(messages), generate_cost_info(messages)
                 case "新建章节剧情":
                     for messages in get_writer().init_chapters(human_feedback=human_feedback):
                         yield messages2chatbot(messages), generate_cost_info(messages)

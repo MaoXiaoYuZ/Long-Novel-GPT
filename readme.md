@@ -15,6 +15,9 @@ Long-Novel-GPT是一个基于GPT等大语言模型的长篇小说生成器。它
 
 ## 更新日志
 - 2024.1.20：<生成章节>页面支持润色，可以单独对字段进行修改。
+- 2024.2.24: 所有页面支持讨论，在实际生成前可以讨论先一些细节。（此次更新不兼容之前存档文件）
+- **2024.2.24：支持直接使用ChatGPT网页版作为API，将调用成本减为0！！！**（**最新更新**）
+
 
 ## 快速上手
 
@@ -40,6 +43,43 @@ Gradio DEMO中有5个Tab页面，分别为：
 - **设置**：在这里设置OpenAI API以及一些生成小说的参数。
 
 ![Gradio DEMO有5个Tab页面](assets/demo_preview.jpg "Demo Preivew")
+
+## 如何使用ChatGPT作为API
+
+本指南将帮助您使用ChatGPT作为API。请遵循以下步骤：
+
+### 1.安装AutoChatScript
+
+首先，您需要安装AutoChatScript。请访问[AutoChatScript GitHub 仓库](https://github.com/MaoXiaoYuZ/AutoChatScript)并按照安装说明进行操作。
+
+```bash
+git clone https://github.com/MaoXiaoYuZ/AutoChatScript.git
+```
+
+### 2. 启动服务
+
+克隆仓库并安装完毕后，通过以下命令启动服务：
+
+```bash
+cd AutoChatScript
+python openai_api.py --server-port 8000
+```
+
+这将在本地启动服务，并监听8000端口。
+
+### 3. 配置Demo
+
+在AutoChatScript的demo <设置> 页面中，填写ChatGPT的`base_url`为：
+
+```
+http://localhost:8000/v1/
+```
+
+确保`8000`端口与步骤2中的服务器端口一致。输入后，请点击测试按钮以确保配置正确。
+
+### 4. 效果展示
+![using chatgpt as api](assets/using_chatgpt_as_api.gif "using chatgpt as api")
+
 
 ### 使用指南
 1. GPT-3.5可能不足以生成达到签约或出版水平的小说，请优先选择GPT-4 API。

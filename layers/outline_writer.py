@@ -64,8 +64,10 @@ class OutlineWriter(Writer):
                 human_feedback = self.get_config('init_outline_setting')
             instruction = instruction
 
-        for response_msgs in self.instruction_outline(instruction):
-            yield response_msgs
+        if 'chatgpt' in self.get_model() and self.get_chat_history()[0]['role'] == 'system':
+            instruction = self.get_chat_history()[0]['content'] + '\n\n' + instruction
+
+        response_msgs = yield from self.instruction_outline(instruction)
         response = response_msgs[-1]['content']
         response_json = self.parse_json_block(response_msgs)
 
@@ -107,8 +109,7 @@ class OutlineWriter(Writer):
                 human_feedback = self.get_config('init_outline_volumes')
             instruction = instruction
 
-        for response_msgs in self.instruction_outline(instruction):
-            yield response_msgs
+        response_msgs = yield from self.instruction_outline(instruction)
         response = response_msgs[-1]['content']
         response_json = self.parse_json_block(response_msgs)
 
@@ -129,9 +130,8 @@ class OutlineWriter(Writer):
         user_prompt = inputs + f"指示：{human_feedback}"    
         messages.append({'role':'user', 'content': user_prompt})    
         
-        for response_msgs in self.chat(messages, response_json=True):
-            yield response_msgs
-        
+        response_msgs = yield from self.chat(messages, response_json=True)
+
         context_messages = response_msgs
         if self.get_config('auto_compress_context'):
             context_messages[-2]['content'] = f"指示：{human_feedback}"
@@ -140,5 +140,5 @@ class OutlineWriter(Writer):
             context_messages = yield from self.summary_messages(context_messages, [1, len(context_messages)-2])
         self.update_chat_history(context_messages)
 
-        yield context_messages
+        return context_messages
     

@@ -55,7 +55,7 @@ def tab_novel_writer(config):
             output = gr.Textbox(label="正文", lines=10, interactive=False)
 
         def create_option(value):
-            available_options = ["新建正文", ]
+            available_options = ["讨论", "新建正文", ]
             if get_writer().has_chat_history():
                     available_options.append("重写正文")
                     available_options.append("润色正文")
@@ -78,6 +78,8 @@ def tab_novel_writer(config):
                 return gr.Textbox(value="", label="你的意见：", lines=2, placeholder="让AI知道你的意见，这在优化阶段会更有用。")
             elif option_value == '润色正文' or option_value == '重写正文':
                 return gr.Textbox(value="请从情节推动不合理，剧情不符合逻辑，条理不清晰等方面进行反思。", label="你的意见：", lines=2)
+            elif option_value == '讨论':
+                return gr.Textbox(value="不要急于得出结论，让我们先一步一步的思考", label="你的意见：", lines=2)
 
         human_feedback = gr.Textbox()
 
@@ -119,6 +121,9 @@ def tab_novel_writer(config):
         @check_running
         def on_submit(option, sub_option, human_feedback):
             match option:
+                case '讨论':
+                    for messages in get_writer().discuss(human_feedback):
+                        yield messages2chatbot(messages), generate_cost_info(messages)
                 case "新建正文":
                     for messages in get_writer().init_text(human_feedback=human_feedback):
                         yield messages2chatbot(messages), generate_cost_info(messages)

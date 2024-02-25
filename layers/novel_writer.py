@@ -25,10 +25,12 @@ class NovelWriter(Writer):
         user_prompt = human_feedback + '\n\n' + \
 """接下来开始对该章的正文进行创作。你需要直接输出正文，不掺杂任何其他内容。
 """
-        messages = self.get_chat_history(resume=False)
+        messages = self.get_chat_history()
 
         messages.append({'role':'user', 'content': user_prompt})
-
+        if 'chatgpt' in self.get_model() and messages[0]['role'] == 'system':
+            messages[-1]['content'] = messages[0]['content'] + '\n\n' + messages[-1]['content']
+            
         response_msgs = yield from self.chat(messages, response_json=False)
         response = response_msgs[-1]['content']
         

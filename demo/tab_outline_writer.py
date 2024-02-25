@@ -47,7 +47,7 @@ def tab_outline_writer(config):
 
 
         def create_option(value):
-            available_options = ["创作小说设定", ]
+            available_options = ["讨论", "创作小说设定", ]
             if get_writer().has_chat_history():
                 available_options.append("创作分卷剧情")
 
@@ -77,6 +77,8 @@ def tab_outline_writer(config):
                     human_feedback_string = writer.get_config("refine_outline_volumes")
                 else:
                     human_feedback_string = writer.get_config("init_outline_volumes")
+            elif option_value == '讨论':
+                human_feedback_string = "不要急于得出结论，让我们先一步一步的思考"
 
             return gr.Textbox(value=human_feedback_string, label="你的意见：", lines=2, placeholder="让AI知道你的意见。")
         
@@ -124,6 +126,9 @@ def tab_outline_writer(config):
                 return
               
             match option:
+                case '讨论':
+                    for messages in get_writer().discuss(human_feedback):
+                        yield messages2chatbot(messages), generate_cost_info(messages)
                 case '创作小说设定':
                     for messages in get_writer().init_outline_setting(human_feedback=human_feedback):
                         yield messages2chatbot(messages), generate_cost_info(messages)

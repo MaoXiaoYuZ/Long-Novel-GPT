@@ -45,8 +45,10 @@ class ChaptersWriter(Writer):
  },
  //更多章节，每一章连着前一章
 }"""    
-        messages = self.get_chat_history(resume=False)
+        messages = self.get_chat_history()
         messages.append({'role':'user', 'content':user_prompt})
+        if 'chatgpt' in self.get_model() and messages[0]['role'] == 'system':
+            messages[-1]['content'] = messages[0]['content'] + '\n\n' + messages[-1]['content']
         for response_msgs in self.chat(messages, response_json=True):
             yield response_msgs
         response = response_msgs[-1]['content']
