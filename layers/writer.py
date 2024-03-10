@@ -23,19 +23,21 @@ class Writer:
 
         self.chat_history = {
             'system_messages': [{'role':'system', 'content': system_prompt}],
-            'custom_system_prompt': [{'role':'system', 'content': ''}],
             }
     
-    def set_custom_system_prompt(self, custom_system_prompt):
-        self.chat_history['custom_system_prompt'][0]['content'] = custom_system_prompt
+    def get_input_context(self) -> str:
+        raise NotImplementedError
     
-    def get_custom_system_prompt(self):
-        return self.chat_history['custom_system_prompt'][0]['content']
+    def get_output(self) -> str:
+        raise NotImplementedError
+    
+    def set_output(self, e):
+        raise NotImplementedError
     
     def get_chat_history(self, chat_id='main_chat', resume=True, inherit='system_messages'):
         if not resume or (chat_id not in self.chat_history):
             if inherit == 'system_messages':
-                return [{'role':'system', 'content': self.chat_history['system_messages'][0]['content'] + self.get_custom_system_prompt()}, ]
+                return [{'role':'system', 'content': self.chat_history['system_messages'][0]['content'] + self.get_input_context()}, ]
             else:
                 return list(self.chat_history[inherit])
         else:
@@ -175,7 +177,7 @@ class Writer:
     def discuss(self, prompt):
         messages = self.get_chat_history()
         messages.append({'role':'user', 'content': prompt})  
-        response_msgs = yield from self.chat(messages, response_json=True)
+        response_msgs = yield from self.chat(messages, response_json=False)
         context_messages = response_msgs
         self.update_chat_history(context_messages)
         yield context_messages

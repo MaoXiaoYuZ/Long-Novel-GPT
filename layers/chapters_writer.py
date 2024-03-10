@@ -5,17 +5,27 @@ from layers.writer import Writer
 
 class ChaptersWriter(Writer):
     def __init__(self, output_path, model='gpt-4-1106-preview', sub_model="gpt-3.5-turbo-1106"):
-        system_prompt = "我会给你小说的大纲以及某一卷的剧情，需要你创作该卷的分章剧情。你需要遵从我的指令，让我们一起一步步进行章节剧情的创作。首先，我们会创作分章剧情，然后再对每章的剧情进行扩充。同时，对于你创作的剧情，我会要求你反思或根据我给出的意见进行修改。"
+        system_prompt = "我会给你小说的大纲，需要你创作分章剧情。你需要遵从我的指令，让我们一起一步步进行章节剧情的创作。首先，我们会创作分章剧情，然后再对每章的剧情进行扩充。同时，对于你创作的剧情，我会要求你反思或根据我给出的意见进行修改。"
         super().__init__(system_prompt, output_path, model, sub_model)
         
         self.chapters = {}
 
         self.load()
     
-    def init_by_outline_writer(self, outline_writer, volume_name):
-        context_volume_names = self.get_context_elements_in_list(volume_name, outline_writer.get_volume_names(), context_length=1)
-        custom_system_prompt = f"\n\n下面是小说的大纲和卷的剧情：{outline_writer.get_outline_content(context_volume_names)}\n\n非常重要：你要创建的是{volume_name}的分章剧情，其余卷作为上下文参考。"
-        self.set_custom_system_prompt(custom_system_prompt)
+    def init_by_outline_writer(self, outline_writer):
+        self.outline_writer = outline_writer
+    
+    def get_input_context(self):
+        return self.outline_writer.idea + '\n\n' + self.outline_writer.get_outline_content()
+    
+    def get_output(self):
+        self.json_dumps(self.chapters)
+    
+    def set_output(self, chapters):
+        if isinstance(chapters, str):
+            chapters = json.loads(chapters)
+        assert isinstance(chapters, dict), 'set_output:The type of chapters must be dict!'
+        self.chapters = chapters
     
     def get_attrs_needed_to_save(self):
         return [('chapters', 'chapters_content.json'), ('chat_history', 'chapters_chat_history.json')]
@@ -25,17 +35,15 @@ class ChaptersWriter(Writer):
     
     def get_chapters_content(self, chatper_names=None):
         if chatper_names is None:
-            return self.json_dumps(self.chapters)
+            ret = self.json_dumps(self.chapters)
         else:
-            return self.json_dumps({k:v for k, v in self.chapters.items() if k in chatper_names})
-    
-    def update_chapters(self, chapters):
-        self.chapters = chapters
+            ret = self.json_dumps({k:v for k, v in self.chapters.items() if k in chatper_names})
+        return ret if ret else ''
 
-    def init_chapters(self, human_feedback=''):
+    def init_chapters(self, human_feedback='', selected_text=None):
         if not human_feedback:
             human_feedback = ""
-        user_prompt =  "现在开始创作该卷的分章剧情。要注意你创作的是章节剧情梗概，不是正文，不要描述过于细节的东西。\n" + f"意见：{human_feedback}" + '\n' + \
+        user_prompt =  "现在开始创作分章剧情。要注意你创作的是章节剧情梗概，不是正文，不要描述过于细节的东西。\n" + f"意见：{human_feedback}" + '\n' + \
 """你需要以如下JSON格式输出：
 {
  "分析": "<结合大纲和意见对分章剧情进行详细的分析>",
@@ -57,13 +65,13 @@ class ChaptersWriter(Writer):
 
         context_messages = response_msgs
         if self.get_config('auto_compress_context'):
-            context_messages[-2]['content'] = "现在开始创作该卷的分章剧情。要注意你创作的是章节剧情梗概，不是正文，不要描述过于细节的东西。\n" + f"意见：{human_feedback}"
+            context_messages[-2]['content'] = "现在开始创作分章剧情。要注意你创作的是章节剧情梗概，不是正文，不要描述过于细节的东西。\n" + f"意见：{human_feedback}"
         
         self.update_chat_history(context_messages)
 
         yield context_messages
     
-    def rewrite_chatpers(self, chapter_name=None, human_feedback=None):
+    def rewrite_chatpers(self, chapter_name=None, human_feedback=None, selected_text=None):
         if not human_feedback:
             human_feedback = "请从情节推动不合理，剧情不符合逻辑，条理不清晰等方面进行反思。"
 
@@ -122,7 +130,7 @@ class ChaptersWriter(Writer):
 
         yield context_messages
     
-    def polish_chatpers(self, chapter_name=None, human_feedback=None):
+    def polish_chatpers(self, chapter_name=None, human_feedback=None, selected_text=None):
         if not human_feedback:
             human_feedback = "请从情节推动不合理，剧情不符合逻辑，条理不清晰等方面进行反思。"
 

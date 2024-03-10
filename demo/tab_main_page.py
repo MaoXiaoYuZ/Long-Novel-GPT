@@ -42,6 +42,7 @@ def tab_main_page(config):
         lngpt.writer_config = config
         if not os.path.exists(path):
             os.makedirs(path)
+            lngpt.init()
             return lngpt
         else:
             lngpt.load_checkpoints()
@@ -51,7 +52,7 @@ def tab_main_page(config):
         if evt.value:
             inputs = evt.value
             lngpt = get_lngpt_by_inputs(inputs)
-            details = lngpt.get_writer().get_custom_system_prompt()
+            details = lngpt.get_writer('outline').get_input_context()
             return gr.Textbox(interactive=False), gr.Textbox(details)
 
     input_options.select(on_select_input_options, None, [inputs, details])
@@ -70,22 +71,19 @@ def tab_main_page(config):
             lngpt = get_lngpt_by_inputs(inputs)
             if inputs not in details:
                 details = f"{inputs}\n{details}"
-            lngpt.get_writer().set_custom_system_prompt(details)
-            lngpt.save()
+            lngpt.get_writer('outline').init_by_idea(details)
+            lngpt.save('outline')
         elif option == '加载小说':
             inputs = input_options
             lngpt = get_lngpt_by_inputs(inputs)
             lngpt.load_checkpoints()
-            lngpt.get_writer().set_custom_system_prompt(details)
-            lngpt.save()
+            lngpt.get_writer('outline').init_by_idea(details)
+            lngpt.save('outline')
         else:
             gr.Info("请选择操作")
             return
         
         config['lngpt'] = lngpt
-        config['novel_name'] = inputs
-        config['novel_details'] = details
-
         gr.Info(f"已经加载小说：{inputs}，接下来在<生成大纲>页面中生成小说大纲!")
 
         #return None, None, None, None

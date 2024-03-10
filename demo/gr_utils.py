@@ -45,3 +45,28 @@ def create_model_radio():
         ('文心3.5', 'ERNIE-Bot'),
         ('文心4.0', 'ERNIE-Bot-4')
         ], label="选择模型")
+
+def create_selected_text(output):
+    def on_select_output(evt: gr.SelectData): 
+        #gr.Info(f"You selected {evt.value} at {evt.index} from {evt.target}")
+        return gr.Textbox(evt.value, visible=True)
+    
+    def on_focus_output(): 
+        #gr.Info("You focus!")
+        return gr.Textbox('', visible=False)
+    
+    selected_output_text = gr.Textbox(label="选中的文本", interactive=False, visible=False)
+    output.select(on_select_output, None, selected_output_text)
+    output.focus(on_focus_output, None, selected_output_text)
+
+    return selected_output_text
+
+def enable_change_output(get_writer, output):
+    def on_blur_output(output): 
+        try:
+            get_writer().set_output(output)
+            return gr.Textbox()
+        except Exception as e:
+            gr.Info(e)
+            return get_writer().get_output()
+    output.blur(on_blur_output, output, output)

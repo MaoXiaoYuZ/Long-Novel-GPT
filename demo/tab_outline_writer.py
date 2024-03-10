@@ -10,47 +10,30 @@ def tab_outline_writer(config):
         'running': 0,
         'cancel': 0,
     }
-    volume_name, chapter_name = None, None
+
     def get_writer():
         nonlocal lngpt
         lngpt = config['lngpt']
         if not lngpt:
             return None
-        return lngpt.get_writer(volume_name, chapter_name)
+        return lngpt.get_writer('outline')
 
     with gr.Tab("生成大纲") as tab:
-        def create_novel_name():
-            if not get_writer():
-                return gr.Radio(choices=["请先在<选择小说名>页面中选择小说。", ], label="选择小说：", value="请先在<选择小说名>页面中选择小说。")
-            
-            return gr.Radio(
-                choices=[config['novel_name'], ],
-                label="选择小说：",
-                value=""
-            )
-        
-        novel_name = gr.Radio()
-        
         with gr.Row():
-            
-
             with gr.Column():
                 def get_inputs_text():
-                    return get_writer().get_custom_system_prompt()
+                    return get_writer().get_input_context()
 
                 inputs = gr.Textbox(label="这是一部什么样的小说？", lines=10, interactive=False)
 
             def get_output_text():
-                return get_writer().json_dumps(get_writer().outline)
+                return get_writer().get_output()
 
-            output = gr.Textbox(label="生成的小说大纲", lines=10, interactive=False)
+            output = gr.Textbox(label="生成的小说大纲", lines=10, interactive=True)
 
 
         def create_option(value):
             available_options = ["讨论", "创作小说设定", ]
-            if get_writer().has_chat_history():
-                available_options.append("创作分卷剧情")
-
             return gr.Radio(
                 choices=available_options,
                 label="选择你要进行的操作",
@@ -72,11 +55,6 @@ def tab_outline_writer(config):
                     human_feedback_string = writer.get_config("refine_outline_setting")
                 else:
                     human_feedback_string = writer.get_config("init_outline_setting")
-            elif option_value == '创作分卷剧情':
-                if '分卷剧情' in writer.outline:
-                    human_feedback_string = writer.get_config("refine_outline_volumes")
-                else:
-                    human_feedback_string = writer.get_config("init_outline_volumes")
             elif option_value == '讨论':
                 human_feedback_string = "不要急于得出结论，让我们先一步一步的思考"
 
@@ -132,15 +110,12 @@ def tab_outline_writer(config):
                 case '创作小说设定':
                     for messages in get_writer().init_outline_setting(human_feedback=human_feedback):
                         yield messages2chatbot(messages), generate_cost_info(messages)
-                case '创作分卷剧情':
-                    for messages in get_writer().init_outline_volumes(human_feedback=human_feedback):
-                        yield messages2chatbot(messages), generate_cost_info(messages)
         
         def save():
-            lngpt.save(volume_name, chapter_name)
+            lngpt.save('outline')
     
         def rollback(i):
-            return lngpt.rollback(i, volume_name, chapter_name)  
+            return lngpt.rollback(i, 'outline')  
         
         def on_roll_back():
             if FLAG['running'] == 1:
@@ -148,8 +123,7 @@ def tab_outline_writer(config):
                 gr.Info("已暂停当前操作！")
                 return
 
-            if lngpt.get_cur_checkpoint_i(volume_name, chapter_name) > 0:   # 为了保证system_details不被删除
-                assert rollback(1), '未知错误'
+            if rollback(1):
                 gr.Info("撤销成功！")
             else:
                 gr.Info("已经是最早的版本了")
@@ -175,11 +149,12 @@ def tab_outline_writer(config):
             lambda option: (get_output_text(), create_option(''), create_sub_option(option), []), option, [output, option, sub_option, chatbot]
         )
     
-    novel_name.select(
-        lambda novel_name: (get_inputs_text(), get_output_text(), create_option(''), create_sub_option(''), []), novel_name, [inputs, output, option, sub_option]
-        )
+    def on_select_tab():
+        if get_writer():
+            return get_inputs_text(), get_output_text(), create_option(''), create_sub_option(''), []
+        else:
+            gr.Info("请先选择小说名！")
+            return gr.Textbox(''), gr.Textbox(''), gr.Radio([]), gr.Radio([]), []
     
-    tab.select(lambda : create_novel_name(), None, novel_name).then(
-        lambda : (gr.Textbox(''), gr.Textbox(''), gr.Radio([]), gr.Radio([]), []), None, [inputs, output, option, sub_option, chatbot]
-        )
+    tab.select(on_select_tab, None, [inputs, output, option, sub_option, chatbot])
     

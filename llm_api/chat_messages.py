@@ -17,7 +17,7 @@ def count_characters(text):
 
 class ChatMessages(list):
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
+        super().__init__(*args)
         self.model = kwargs['model'] if 'model' in kwargs else None
         self.cost = kwargs['cost'] if 'cost' in kwargs else None
         self.currency_symbol = kwargs['currency_symbol'] if 'currency_symbol' in kwargs else None

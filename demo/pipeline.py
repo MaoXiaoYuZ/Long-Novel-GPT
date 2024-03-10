@@ -1,4 +1,3 @@
-import re
 import os
 
 from layers.outline_writer import OutlineWriter
@@ -10,68 +9,36 @@ class Long_Novel_GPT_DEMO:
         self.output_path = output_path
         self.model = model
 
-        self.layers = {}
-    
-    def get_layer(self, volume_name=None, chapter_name=None):
-        key = 'writer'
-        if volume_name is None and chapter_name is None:
-            layer = self.layers
-            if key in layer:
-                return layer
-            else:
-                layer[key] = self.get_outline_writer()
-                return layer
-            
-        elif volume_name is not None and chapter_name is None:
-            if volume_name not in self.layers:
-                self.layers[volume_name] = layer = {}
-            else:
-                layer = self.layers[volume_name]
+        self.init_layers()
 
-            if key in layer:
-                return layer
-            else:
-                layer[key] = self.get_chapters_writer(self.layers[key], volume_name)
-                return layer
-        else:
-            assert volume_name in self.layers, f"ERROR: 未找到分卷名称：{volume_name}"
-            if chapter_name not in self.layers[volume_name]:
-                self.layers[volume_name][chapter_name] = layer  = {}
-            else:
-                layer = self.layers[volume_name][chapter_name]
+    def init_layers(self):
+        self.outline_writer = self.get_outline_writer()
+        self.chapters_writer = self.get_chapters_writer(self.outline_writer)
+        self.novel_writer = self.get_novel_writer(self.outline_writer, self.chapters_writer)
 
-            if key in layer:
-                return layer
-            else:
-                layer[key] = self.get_novel_writer(self.layers[key], volume_name, self.layers[volume_name][key], chapter_name)
-                return layer
-    
-    def get_writer(self, volume_name=None, chapter_name=None):
-        return self.get_layer(volume_name, chapter_name)['writer']
+    def get_writer(self, layer_name):
+        return eval(f"self.{layer_name}_writer")
     
     def get_outline_writer(self):
         outline_writer = OutlineWriter(
-            output_path=self.output_path,
+            output_path=os.path.join(self.output_path, 'outline_writer'),
             model=self.model
         )
         return outline_writer
     
-    def get_chapters_writer(self, outline, volume_name):
-        assert volume_name in outline.get_volume_names(), f"ERROR: 未找到分卷名称：{volume_name}"
+    def get_chapters_writer(self, outline):
         chapters_writer = ChaptersWriter(
-            output_path=os.path.join(self.output_path, volume_name),
+            output_path=os.path.join(self.output_path, 'chapters_writer'),
             model=self.model
         )
-        chapters_writer.init_by_outline_writer(outline, volume_name)
+        chapters_writer.init_by_outline_writer(outline)
         return chapters_writer
 
     
-    def get_novel_writer(self, outline, volume_name, chapters, chapter_name):
-        assert volume_name in outline.get_volume_names(), f"ERROR: 未找到分卷名称：{volume_name}"
-        assert chapter_name in chapters.get_chapter_names(), f"ERROR: 未找到章节名称：{chapter_name}"
+    def get_novel_writer(self, outline, chapters):
         novel_writer = NovelWriter(
-            output_path=os.path.join(self.output_path, volume_name, chapter_name),
+            output_path=os.path.join(self.output_path, 'novel_writer'),
             model=self.model,
         )
-        novel_writer.init_by_outline_and_chapters_writer(outline, volume_name, chapters, chapter_name)
+        novel_writer.init_by_outline_and_chapters_writer(outline, chapters)
         return novel_writer

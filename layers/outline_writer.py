@@ -7,33 +7,40 @@ class OutlineWriter(Writer):
     def __init__(self, output_path, model='gpt-4-1106-preview', sub_model="gpt-3.5-turbo-1106"):
         system_prompt = \
 """现在你是一个小说家，正在和我一起合作来创作小说大纲。
-小说大纲包括小说设定和分卷剧情。
 接下来让我们一步一步来，你需要遵照我的指令逐步完成整个大纲的创作，期间我还可能让你根据我的意见进行修改。
 对话的内容如果过长，我会让你进行总结并省略部分对话内容。""" 
         super().__init__(system_prompt, output_path, model, sub_model)
 
         self.outline = {}
 
+        self.idea = ''
+
         self.load()
 
         self.set_config(init_outline_setting = '现在需要你对小说设定进行创作。')
-        self.set_config(init_outline_volumes = '现在需要你对分卷剧情进行创作。')
         self.set_config(refine_outline_setting = "之前输出的设定中还有很多可以改进的地方，请进行反思。")
-        self.set_config(refine_outline_volumes = "之前输出的分卷剧情还有很多可以改进的地方，请进行反思。")
+    
+    def init_by_idea(self, idea):
+        self.idea = idea
+    
+    def get_input_context(self):
+        return self.idea
+    
+    def get_output(self):
+        return self.json_dumps(self.outline)
+    
+    def set_output(self, outline):
+        if isinstance(outline, str):
+            outline = self.json_load(outline)
+        assert isinstance(outline, dict), 'set_output:The type of outline must be dict!'
+        self.outline = outline
     
     def get_attrs_needed_to_save(self):
-        return [('outline', 'outline_content.json'), ('chat_history', 'outline_chat_history.json')]
-    
-    def get_volume_names(self):
-        return list(self.outline['分卷剧情'].keys()) if '分卷剧情' in self.outline else []
-    
-    def get_outline_content(self, volume_names=None):
-        if volume_names is None:
-            volume_names = self.get_volume_names()
-        data = {k:v for k, v in self.outline.items() if k != '分卷剧情'}
-        if volume_names:
-            data['分卷剧情'] = {k:v for k, v in self.outline['分卷剧情'].items() if k in volume_names}
-        return self.json_dumps(data)
+        return [('outline', 'outline_content.json'), ('chat_history', 'outline_chat_history.json'), ('idea', 'idea.json')]
+
+    def get_outline_content(self):
+        data = {k:v for k, v in self.outline.items()}
+        return self.json_dumps(data) if data else ''
     
     def update_outline(self, outline):
         self.outline = outline
@@ -84,39 +91,6 @@ class OutlineWriter(Writer):
             elif setting_content['操作'] == '保留':
                 if '描述' in setting_content:
                     self.outline[setting_name] = setting_content['描述']
-
-    def init_outline_volumes(self, human_feedback=None):
-        instruction = \
-"""
-如果之前已有分卷剧情，那就只输出需要更改的部分JSON。
-你需要按照下面JSON格式输出：
-{
-"分卷剧情":{
-"分析": "<这里进行分析/反思>",
-"第1卷": {
-"分析": "<这里进行分析/反思>", 
-"剧情": "<这里创作该卷的剧情>"
-},
-//更多卷
-}
-}"""  
-        if human_feedback:
-            instruction = f"{human_feedback}" + '\n\n' + instruction
-        else:
-            if "分卷剧情" in self.outline and self.outline['分卷剧情']:
-                human_feedback = self.get_config('refine_outline_volumes')
-            else:
-                human_feedback = self.get_config('init_outline_volumes')
-            instruction = instruction
-
-        response_msgs = yield from self.instruction_outline(instruction)
-        response = response_msgs[-1]['content']
-        response_json = self.parse_json_block(response_msgs)
-
-        if '分卷剧情' not in self.outline:
-            self.outline['分卷剧情'] = {}
-
-        self.outline['分卷剧情'].update({k:{"剧情": v['剧情']} for k, v in response_json['分卷剧情'].items() if isinstance(v, dict)})
 
     def instruction_outline(self, human_feedback=None):
         messages = self.get_chat_history()

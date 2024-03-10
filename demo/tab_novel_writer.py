@@ -1,7 +1,7 @@
 import json
 import gradio as gr
 
-from demo.gr_utils import messages2chatbot, block_diff_text, create_model_radio
+from demo.gr_utils import messages2chatbot, block_diff_text, create_model_radio, create_selected_text, enable_change_output
 
 def tab_novel_writer(config):
     lngpt = config['lngpt']
@@ -15,44 +15,20 @@ def tab_novel_writer(config):
         lngpt = config['lngpt']
         if not lngpt:
             return None
-        if 'cur_volume_name' not in lngpt.layers:
-            return None
-        if 'cur_chapter_name' not in lngpt.layers:
-            cur_volume_name = lngpt.layers['cur_volume_name']
-            if chapter_names := lngpt.get_writer(cur_volume_name).get_chapter_names():
-                lngpt.layers['cur_chapter_name'] = chapter_names[0]
-            else:
-                return None
                 
-        return lngpt.get_writer(lngpt.layers['cur_volume_name'], lngpt.layers['cur_chapter_name'])
+        return lngpt.get_writer('novel')
 
     with gr.Tab("生成正文") as tab:
-        def create_chapter_name(value):
-            if not get_writer():
-                return gr.Radio(choices=["请先在<生成章节>页面中生成分章剧情。", ], label="选择章节：", value="请先在<生成章节>页面中生成分章剧情。")
-            
-            available_options = lngpt.get_writer(lngpt.layers['cur_volume_name']).get_chapter_names()
-            
-            return gr.Radio(
-                choices=available_options,
-                label="选择章节：",
-                value='',
-            )
-
-        volume_name = None
-
-        chapter_name = gr.Radio()
-
         with gr.Row():
             def get_inputs_text():
-                return get_writer().get_custom_system_prompt()
+                return get_writer().get_input_context()
             
             inputs = gr.Textbox(label="章节剧情", lines=10, interactive=False)
 
             def get_output_text():
-                return get_writer().text
+                return get_writer().get_output()
 
-            output = gr.Textbox(label="正文", lines=10, interactive=False)
+            output = gr.Textbox(label="正文", lines=10, interactive=True)
 
         def create_option(value):
             available_options = ["讨论", "新建正文", ]
@@ -72,6 +48,9 @@ def tab_novel_writer(config):
             return gr.Radio(visible=False)
         
         sub_option = gr.Radio()
+
+        selected_output_text = create_selected_text(output)
+        enable_change_output(get_writer, output)
 
         def create_human_feedback(option_value):
             if option_value == '新建正文':
@@ -119,26 +98,26 @@ def tab_novel_writer(config):
             return wrapper
         
         @check_running
-        def on_submit(option, sub_option, human_feedback):
+        def on_submit(option, sub_option, human_feedback, selected_output_text):
             match option:
                 case '讨论':
                     for messages in get_writer().discuss(human_feedback):
                         yield messages2chatbot(messages), generate_cost_info(messages)
                 case "新建正文":
-                    for messages in get_writer().init_text(human_feedback=human_feedback):
+                    for messages in get_writer().init_text(human_feedback=human_feedback, selected_text=selected_output_text):
                         yield messages2chatbot(messages), generate_cost_info(messages)
                 case "重写正文":
-                    for messages in get_writer().rewrite_text(human_feedback=human_feedback):
+                    for messages in get_writer().rewrite_text(human_feedback=human_feedback, selected_text=selected_output_text):
                         yield messages2chatbot(messages), generate_cost_info(messages)
                 case "润色正文":
-                    for messages in get_writer().polish_text(human_feedback=human_feedback):
+                    for messages in get_writer().polish_text(human_feedback=human_feedback, selected_text=selected_output_text):
                         yield messages2chatbot(messages), generate_cost_info(messages)
         
         def save():
-            lngpt.save(lngpt.layers['cur_volume_name'], lngpt.layers['cur_chapter_name'])
+            lngpt.save('novel')
     
         def rollback(i):
-            return lngpt.rollback(i, lngpt.layers['cur_volume_name'], lngpt.layers['cur_chapter_name'])  
+            return lngpt.rollback(i, 'novel')  
         
         def on_roll_back():
             if FLAG['running'] == 1:
@@ -151,16 +130,16 @@ def tab_novel_writer(config):
             else:
                 gr.Info("已经是最早的版本了")
         
-        @gr.on(triggers=[model.select, option.select, human_feedback.change], inputs=[model, option, sub_option, human_feedback], outputs=[chatbot, cost_info])
-        def on_cost_change(model, option, sub_option, human_feedback):
+        @gr.on(triggers=[model.select, option.select, human_feedback.change], inputs=[model, option, sub_option, human_feedback, selected_output_text], outputs=[chatbot, cost_info])
+        def on_cost_change(model, option, sub_option, human_feedback, selected_output_text):
             if model: get_writer().set_model(model)
             if option:
-                messages, cost_info = next(on_submit(option, sub_option, human_feedback))
+                messages, cost_info = next(on_submit(option, sub_option, human_feedback, selected_output_text))
                 return messages, cost_info
             else:
                 return None, None
 
-        start_button.click(on_submit, [option, sub_option, human_feedback], [chatbot, cost_info]).success(
+        start_button.click(on_submit, [option, sub_option, human_feedback, selected_output_text], [chatbot, cost_info]).success(
             save).then(
             lambda option: (get_output_text(), create_option(''), create_sub_option(option)), option, [output, option, sub_option]
         )
@@ -169,13 +148,11 @@ def tab_novel_writer(config):
             lambda option: (get_output_text(), create_option(''), create_sub_option(option), []), option, [output, option, sub_option, chatbot]
         )
     
-    def on_select_chapter_name(chapter_name, evt: gr.SelectData):
-        lngpt.layers['cur_chapter_name'] = evt.value
-
-    chapter_name.select(on_select_chapter_name, chapter_name, None).then(
-        lambda : (get_inputs_text(), get_output_text(), create_option(''), create_sub_option(''), []), None, [inputs, output, option, sub_option, chatbot]
-        )
+    def on_select_tab():
+        if get_writer():
+            return get_inputs_text(), get_output_text(), create_option(''), create_sub_option(''), []
+        else:
+            gr.Info("请先选择小说名！")
+            return gr.Textbox(''), gr.Textbox(''), gr.Radio([]), gr.Radio([]), []
     
-    tab.select(lambda chapter_name: create_chapter_name(chapter_name), chapter_name, chapter_name).then(
-        lambda : (gr.Textbox(''), gr.Textbox(''), gr.Radio([]), gr.Radio([]), []), None, [inputs, output, option, sub_option, chatbot]
-        )
+    tab.select(on_select_tab, None, [inputs, output, option, sub_option, chatbot])
