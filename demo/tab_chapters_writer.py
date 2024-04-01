@@ -1,7 +1,7 @@
 import json
 import gradio as gr
 
-from demo.gr_utils import messages2chatbot, block_diff_text, create_model_radio, create_selected_text, enable_change_output
+from demo.gr_utils import messages2chatbot, block_diff_text, create_model_radio, create_selected_text, enable_change_output, generate_cost_info
 
 
 def tab_chapters_writer(config):
@@ -26,15 +26,14 @@ def tab_chapters_writer(config):
             inputs = gr.Textbox(label="大纲", lines=10, interactive=False)
 
             def get_output_text():
-                return get_writer().json_dumps(get_writer().chapters)
+                return get_writer().get_output()
 
             output = gr.Textbox(label="章节剧情", lines=10, interactive=True)
 
         def create_option(value):
             available_options = ["讨论", "新建章节剧情", ]
-            if get_writer().has_chat_history():
+            if get_writer().get_chapter_names():
                 available_options.append("重写章节剧情")
-                available_options.append("润色章节剧情")
 
             return gr.Radio(
                 choices=available_options,
@@ -48,8 +47,6 @@ def tab_chapters_writer(config):
             if option_value == '新建章节剧情':
                 return gr.Radio(["全部章节"], label="选择章节", value="")
             elif option_value == '重写章节剧情':
-                return gr.Radio(["全部章节"] + get_writer().get_chapter_names(), label="选择章节", value='')
-            elif option_value == '润色章节剧情':
                 return gr.Radio(get_writer().get_chapter_names(), label="选择章节", value='')
             elif option_value == '讨论':
                 return gr.Radio(["全部章节"] + get_writer().get_chapter_names(), label="选择章节", value='')
@@ -62,7 +59,7 @@ def tab_chapters_writer(config):
         def create_human_feedback(option_value):
             if option_value == '新建章节剧情':
                 return gr.Textbox(value="", label="你的意见：", lines=2, placeholder="让AI知道你的意见，这在优化阶段会更有用。")
-            elif option_value == '重写章节剧情' or option_value == '润色章节剧情':
+            elif option_value == '重写章节剧情':
                 return gr.Textbox(value="请从情节推动不合理，剧情不符合逻辑，条理不清晰等方面进行反思。", label="你的意见：", lines=2)
             elif option_value == '讨论':
                 return gr.Textbox(value="不要急于得出结论，让我们先一步一步的思考", label="你的意见：", lines=2)
@@ -74,21 +71,16 @@ def tab_chapters_writer(config):
 
         option.select(on_select_option, None, [sub_option, human_feedback])
 
-        def generate_cost_info(cur_messages):
-            cost = cur_messages.cost
-            currency_symbol = cur_messages.currency_symbol
-            return gr.Markdown(f"当前操作预计消耗：{cost:.4f}{currency_symbol}")
-
         cost_info = gr.Markdown('当前操作预计消耗：0$')
         start_button = gr.Button("开始")
-        rollback_button = gr.Button("撤销")
+        rollback_button = gr.Button("撤销（不可撤销正在进行的操作）")
 
         chatbot = gr.Chatbot()
         def check_running(func):
             def wrapper(*args, **kwargs):
-                if FLAG['running'] == 1:
-                    gr.Info("当前有操作正在进行，请稍后再试！")
-                    return
+                # if FLAG['running'] == 1:
+                #     gr.Info("当前有操作正在进行，请稍后再试！")
+                #     return
 
                 FLAG['running'] = 1
                 try:
@@ -98,13 +90,14 @@ def tab_chapters_writer(config):
                             break
                         yield ret
                 except Exception as e:
-                    raise gr.Error(e)
+                    raise gr.Error(str(e))
                 finally:
                     FLAG['running'] = 0
             return wrapper
         
         @check_running
         def on_submit(option, sub_option, human_feedback, selected_output_text):
+            selected_output_text = selected_output_text.strip()
             if sub_option == '全部章节':
                 sub_option = None
             else:
@@ -118,11 +111,10 @@ def tab_chapters_writer(config):
                     for messages in get_writer().init_chapters(human_feedback=human_feedback, selected_text=selected_output_text):
                         yield messages2chatbot(messages), generate_cost_info(messages)
                 case "重写章节剧情":
-                    for messages in get_writer().rewrite_chatpers(chapter_name=sub_option, human_feedback=human_feedback, selected_text=selected_output_text):
+                    for i, messages in enumerate(get_writer().rewrite_chatpers(chapter_name=sub_option, human_feedback=human_feedback, selected_text=selected_output_text)):
                         yield messages2chatbot(messages), generate_cost_info(messages)
-                case "润色章节剧情":
-                    for messages in get_writer().polish_chatpers(chapter_name=sub_option, human_feedback=human_feedback, selected_text=selected_output_text):
-                        yield messages2chatbot(messages), generate_cost_info(messages)
+                        if i == 0 and not selected_output_text:
+                            raise gr.Error('请先在正文栏中选定要重写的部分！')
         
         def save():
             lngpt.save('chapters')
@@ -131,10 +123,11 @@ def tab_chapters_writer(config):
             return lngpt.rollback(i, 'chapters')  
         
         def on_roll_back():
-            if FLAG['running'] == 1:
-                FLAG['cancel'] = 1
-                gr.Info("已暂停当前操作！")
-                return
+            # if FLAG['running'] == 1:
+            #     FLAG['cancel'] = 1
+            #     FLAG['running'] = 0
+            #     gr.Info("已暂停当前操作！")
+            #     return
 
             if rollback(1):
                 gr.Info("撤销成功！")

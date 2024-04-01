@@ -3,7 +3,7 @@ import json
 import re
 from openai import OpenAI
 
-from llm_api.chat_messages import ChatMessages
+from .chat_messages import ChatMessages
 
 chatgpt_config = {
     'api_key': 'none',
@@ -146,6 +146,4 @@ if __name__ == '__main__':
     #         {"role": "user", "content": "hello"}
     #     ])
     # print(response)
-    #print(test_chatgpt_api())
-    import pyperclip
-    print(match_first_json_block(pyperclip.paste()))
+    print(test_chatgpt_api())

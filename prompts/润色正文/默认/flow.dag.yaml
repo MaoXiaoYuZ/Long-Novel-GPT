@@ -1,0 +1,33 @@
+$schema: https://azuremlschemas.azureedge.net/promptflow/latest/Flow.schema.json
+environment:
+  python_requirements_txt: requirements.txt
+inputs:
+  chat_messages:
+    type: list
+    default: []
+  feedback:
+    type: string
+    default: ""
+  model:
+    type: string
+    default: gpt-3.5-turbo-1106
+  config:
+    type: object
+    default:
+      auto_compress_context: true
+  text:
+    type: string
+    default: fwefewfweaf
+outputs:
+  prompt:
+    type: string
+    reference: ${prompt.output}
+nodes:
+- name: prompt
+  type: prompt
+  source:
+    type: code
+    path: prompt.jinja2
+  inputs:
+    feedback: ${inputs.feedback}
+    text: ${inputs.text}

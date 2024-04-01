@@ -1,0 +1,58 @@
+$schema: https://azuremlschemas.azureedge.net/promptflow/latest/Flow.schema.json
+environment:
+  python_requirements_txt: requirements.txt
+inputs:
+  chat_messages:
+    type: list
+    default: []
+  model:
+    type: string
+    default: gpt-4-1106-preview
+  config:
+    type: object
+    default:
+      auto_compress_context: true
+  text:
+    type: string
+    default: 然而，在这热闹的人群中，独自一人的林峰显得格外突出。他站在一旁，与周围喧嚣的气氛形成鲜明对比，眼神中透露出冷静和坚定。林峰望着前方那如同天外飞瀑般陡峭的悬崖，眼中闪烁着对未知的渴望。这座悬崖不仅是物理上的障碍，更是试炼者心路历程的象征。其他参试者开始尝试传统的攀爬方法挑战悬崖，但林峰似乎对此不感兴趣。他的目光穿透迷雾，仿佛已经在心中探索出一条属于自己的道路，这条路不仅仅是为了克服眼前的障碍，更是为了达到心灵的觉醒和自我超越。
+  feedback:
+    type: string
+    default: 心理描写多余，过于激动
+outputs:
+  chat_messages:
+    type: string
+    reference: ${parser.output.chat_messages}
+  text:
+    type: string
+    reference: ${parser.output.text}
+nodes:
+- name: prompt
+  type: prompt
+  source:
+    type: code
+    path: prompt.jinja2
+  inputs:
+    text: ${inputs.text}
+    feedback: ${inputs.feedback}
+- name: chat
+  type: python
+  source:
+    type: code
+    path: ../../tool_chat.py
+  inputs:
+    messages: ${inputs.chat_messages}
+    prompt: ${prompt.output}
+    model: ${inputs.model}
+    response_json: false
+    parse_chat: true
+  aggregation: false
+- name: parser
+  type: python
+  source:
+    type: code
+    path: parser.py
+  inputs:
+    response_msgs: ${chat.output}
+    config: ${inputs.config}
+    text: ${inputs.text}
+    feedback: ${inputs.feedback}

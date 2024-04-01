@@ -44,7 +44,7 @@ def tab_setting(config):
                 report = gr.Textbox(label='测试结果', value='', interactive=False)
             
             def on_click_test_button(access_key, secret_key):
-                set_wenxin_api_config(access_key=access_key, secret_key=secret_key)
+                set_wenxin_api_config(ak=access_key, sk=secret_key)
                 return test_wenxin_api()
             
             test_button.click(on_click_test_button, [baidu_access_key, baidu_secret_key], report)
@@ -64,8 +64,8 @@ def tab_setting(config):
         openai_api_key = gr.Textbox(label='openai api_key', value=openai_config['api_key'], lines=1, placeholder='这里输入openai api key', interactive=True)
         openai_base_url = gr.Textbox(label='openai base_url', value=openai_config['base_url'], lines=1, placeholder='这里输入openai base url', interactive=True)
         chatgpt_base_url = gr.Textbox(label='chatgpt base_url', value=chatgpt_config['base_url'], lines=1, placeholder='这里输入chatgpt base url', interactive=True)
-        baidu_access_key = gr.Textbox(label='baidu access_key', value=baidu_config['access_key'], lines=1, placeholder='这里输入baidu access key', interactive=True)
-        baidu_secret_key = gr.Textbox(label='baidu secret_key', value=baidu_config['secret_key'], lines=1, placeholder='这里输入baidu secret key', interactive=True)
+        baidu_access_key = gr.Textbox(label='baidu access_key', value=baidu_config['ak'], lines=1, placeholder='这里输入baidu access key', interactive=True)
+        baidu_secret_key = gr.Textbox(label='baidu secret_key', value=baidu_config['sk'], lines=1, placeholder='这里输入baidu secret key', interactive=True)
         chat_context_limit = gr.Number(label='chat_context_limit', info='llm api的最大上下文长度，超过此长度会调用大模型进行压缩', value=config['chat_context_limit'], interactive=True)
         auto_compress_context = gr.Checkbox(label='auto_compress_context', info='是否自动精简上下文中重复的信息', value=True, interactive=True)
         return openai_api_key, openai_base_url, chatgpt_base_url, baidu_access_key, baidu_secret_key, chat_context_limit, auto_compress_context

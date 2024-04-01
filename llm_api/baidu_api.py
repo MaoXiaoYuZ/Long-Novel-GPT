@@ -1,12 +1,14 @@
 import re
 import qianfan
 
-from llm_api.chat_messages import ChatMessages
+from .chat_messages import ChatMessages
 
 baidu_config = {
-    'access_key': '',
-    'secret_key': ''
+    'ak': '',
+    'sk': ''
 }
+
+#https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application
 
 wenxin_model_config = {
     "ERNIE-Bot":{
@@ -23,6 +25,7 @@ def set_wenxin_api_config(**kwargs):
     global client
     baidu_config.update(kwargs)
     client = qianfan.ChatCompletion(**baidu_config)
+
 
 def count_wenxin_api_cost(model, context_tokens, completion_tokens):
     cost = wenxin_model_config[model]["Pricing"][0] * context_tokens / 1_000 + wenxin_model_config[model]["Pricing"][1] * completion_tokens / 1_000

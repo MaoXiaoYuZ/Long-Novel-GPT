@@ -1,7 +1,7 @@
 import json
 import gradio as gr
 
-from demo.gr_utils import messages2chatbot, block_diff_text, create_model_radio
+from demo.gr_utils import messages2chatbot, block_diff_text, create_model_radio, generate_cost_info
 
 
 def tab_outline_writer(config):
@@ -67,22 +67,17 @@ def tab_outline_writer(config):
 
         option.select(on_select_option, None, [sub_option, human_feedback])
 
-        def generate_cost_info(cur_messages):
-            cost = cur_messages.cost
-            currency_symbol = cur_messages.currency_symbol
-            return gr.Markdown(f"当前操作预计消耗：{cost:.4f}{currency_symbol}")
-
         cost_info = gr.Markdown('当前操作预计消耗：0$')
         start_button = gr.Button("开始")
-        rollback_button = gr.Button("撤销")
+        rollback_button = gr.Button("撤销（不可撤销正在进行的操作）")
 
         chatbot = gr.Chatbot()
 
         def check_running(func):
             def wrapper(*args, **kwargs):
-                if FLAG['running'] == 1:
-                    gr.Info("当前有操作正在进行，请稍后再试！")
-                    return
+                # if FLAG['running'] == 1:
+                #     gr.Info("当前有操作正在进行，请稍后再试！")
+                #     return
 
                 FLAG['running'] = 1
                 try:
@@ -92,7 +87,7 @@ def tab_outline_writer(config):
                             break
                         yield ret
                 except Exception as e:
-                    raise gr.Error(e)
+                    raise gr.Error(str(e))
                 finally:
                     FLAG['running'] = 0
             return wrapper
@@ -118,10 +113,11 @@ def tab_outline_writer(config):
             return lngpt.rollback(i, 'outline')  
         
         def on_roll_back():
-            if FLAG['running'] == 1:
-                FLAG['cancel'] = 1
-                gr.Info("已暂停当前操作！")
-                return
+            # if FLAG['running'] == 1:
+            #     FLAG['cancel'] = 1
+            #     FLAG['running'] = 0
+            #     gr.Info("已暂停当前操作！")
+            #     return
 
             if rollback(1):
                 gr.Info("撤销成功！")

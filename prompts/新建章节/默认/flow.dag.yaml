@@ -1,0 +1,53 @@
+$schema: https://azuremlschemas.azureedge.net/promptflow/latest/Flow.schema.json
+environment:
+  python_requirements_txt: requirements.txt
+inputs:
+  chat_messages:
+    type: list
+    default: []
+  model:
+    type: string
+    default: gpt-4-1106-preview
+  config:
+    type: object
+    default:
+      auto_compress_context: true
+  feedback:
+    type: string
+    default: 小说名《商业大亨穿越到哈利波特世界，但我不会魔法》
+outputs:
+  chat_messages:
+    type: string
+    reference: ${parser.output.chat_messages}
+  chapters:
+    type: string
+    reference: ${parser.output.chapters}
+nodes:
+- name: prompt
+  type: prompt
+  source:
+    type: code
+    path: prompt.jinja2
+  inputs:
+    feedback: ${inputs.feedback}
+- name: chat
+  type: python
+  source:
+    type: code
+    path: ../../tool_chat.py
+  inputs:
+    messages: ${inputs.chat_messages}
+    prompt: ${prompt.output}
+    model: ${inputs.model}
+    response_json: true
+    parse_chat: true
+  aggregation: false
+- name: parser
+  type: python
+  source:
+    type: code
+    path: parser.py
+  inputs:
+    response_msgs: ${chat.output}
+    config: ${inputs.config}
+    human_feedback: ${inputs.feedback}

@@ -15,14 +15,14 @@ from demo.tab_novel_writer import tab_novel_writer
 from demo.tab_setting import tab_setting
 
 info = \
-"""1. GPT-3.5可能不足以生成达到签约或出版水平的小说，请优先选择GPT-4 API。
-2. 请在**设置**页面中配置OpenAI API，否则无法使用。
+"""1. GPT-3.5可能不足以生成达到签约或出版水平的小说，请优先选择GPT-4或文心4 API。
+2. 请在**设置**页面中配置OpenAI或文心API，否则无法使用。
 3. 在生成小说名后可以自行选择生成大纲，章节或正文。
 4. 如果遇到任何无法解决的问题，请尝试刷新页面或重启程序。
 """
 
 with gr.Blocks() as demo:
-    gr.Markdown("# Long-Novel-GPT 1.3")
+    gr.Markdown("# Long-Novel-GPT 1.4")
     with gr.Accordion("使用指南"):
         gr.Markdown(info)
     config = {'lngpt': None, 'chat_context_limit': 2000, 'auto_compress_context': True}
@@ -34,4 +34,4 @@ with gr.Blocks() as demo:
 
 if __name__ == "__main__":
     demo.queue()
-    demo.launch(share=False)
+    demo.launch(share=False, inbrowser=True)

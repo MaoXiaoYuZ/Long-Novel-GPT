@@ -2,10 +2,10 @@ from collections import defaultdict
 import json
 from openai import OpenAI
 
-from llm_api.chat_messages import ChatMessages
+from .chat_messages import ChatMessages
 
 openai_config = {
-    'api_key': '',
+    'api_key': 'none',
     'base_url': '',
 }
 
@@ -25,7 +25,7 @@ client = None
 def set_gpt_api_config(**kwargs):
     global client
     openai_config.update(kwargs)
-    client = OpenAI(**kwargs)
+    client = OpenAI(**openai_config)
 
 def count_gpt_api_cost(model, context_tokens, completion_tokens):
     cost = gpt_model_config[model]["Pricing"][0] * context_tokens / 1_000 + gpt_model_config[model]["Pricing"][1] * completion_tokens / 1_000

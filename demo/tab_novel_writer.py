@@ -1,7 +1,7 @@
 import json
 import gradio as gr
 
-from demo.gr_utils import messages2chatbot, block_diff_text, create_model_radio, create_selected_text, enable_change_output
+from demo.gr_utils import messages2chatbot, block_diff_text, create_model_radio, create_selected_text, enable_change_output, generate_cost_info
 
 def tab_novel_writer(config):
     lngpt = config['lngpt']
@@ -21,7 +21,11 @@ def tab_novel_writer(config):
     with gr.Tab("生成正文") as tab:
         with gr.Row():
             def get_inputs_text():
-                return get_writer().get_input_context()
+                cur_chapter_name = get_writer().get_cur_chapter_name()
+                if not cur_chapter_name:
+                    return gr.Textbox(get_writer().get_input_context(), label="章节剧情（当前未选择任何章节，使用默认章节）")
+                else:
+                    return gr.Textbox(get_writer().get_input_context(), label=f"章节剧情（{cur_chapter_name}）")
             
             inputs = gr.Textbox(label="章节剧情", lines=10, interactive=False)
 
@@ -32,9 +36,9 @@ def tab_novel_writer(config):
 
         def create_option(value):
             available_options = ["讨论", "新建正文", ]
-            if get_writer().has_chat_history():
+            if get_writer().get_output():
                     available_options.append("重写正文")
-                    available_options.append("润色正文")
+                    # available_options.append("润色正文")
 
             return gr.Radio(
                 choices=available_options,
@@ -67,22 +71,17 @@ def tab_novel_writer(config):
 
         option.select(on_select_option, None, [sub_option, human_feedback])
 
-        def generate_cost_info(cur_messages):
-            cost = cur_messages.cost
-            currency_symbol = cur_messages.currency_symbol
-            return gr.Markdown(f"当前操作预计消耗：{cost:.4f}{currency_symbol}")
-
         cost_info = gr.Markdown('当前操作预计消耗：0$')
         start_button = gr.Button("开始")
-        rollback_button = gr.Button("撤销")
+        rollback_button = gr.Button("撤销（不可撤销正在进行的操作）")
 
         chatbot = gr.Chatbot()
 
         def check_running(func):
             def wrapper(*args, **kwargs):
-                if FLAG['running'] == 1:
-                    gr.Info("当前有操作正在进行，请稍后再试！")
-                    return
+                # if FLAG['running'] == 1:
+                #     gr.Info("当前有操作正在进行，请稍后再试！")
+                #     return
 
                 FLAG['running'] = 1
                 try:
@@ -92,13 +91,14 @@ def tab_novel_writer(config):
                             break
                         yield ret
                 except Exception as e:
-                    raise gr.Error(e)
+                    raise gr.Error(str(e))
                 finally:
                     FLAG['running'] = 0
             return wrapper
         
         @check_running
         def on_submit(option, sub_option, human_feedback, selected_output_text):
+            selected_output_text = selected_output_text.strip()
             match option:
                 case '讨论':
                     for messages in get_writer().discuss(human_feedback):
@@ -107,8 +107,10 @@ def tab_novel_writer(config):
                     for messages in get_writer().init_text(human_feedback=human_feedback, selected_text=selected_output_text):
                         yield messages2chatbot(messages), generate_cost_info(messages)
                 case "重写正文":
-                    for messages in get_writer().rewrite_text(human_feedback=human_feedback, selected_text=selected_output_text):
+                    for i, messages in enumerate(get_writer().rewrite_text(human_feedback=human_feedback, selected_text=selected_output_text)):
                         yield messages2chatbot(messages), generate_cost_info(messages)
+                        if i == 0 and not selected_output_text:
+                            raise gr.Error('请先在正文栏中选定要重写的部分！')
                 case "润色正文":
                     for messages in get_writer().polish_text(human_feedback=human_feedback, selected_text=selected_output_text):
                         yield messages2chatbot(messages), generate_cost_info(messages)
@@ -120,10 +122,11 @@ def tab_novel_writer(config):
             return lngpt.rollback(i, 'novel')  
         
         def on_roll_back():
-            if FLAG['running'] == 1:
-                FLAG['cancel'] = 1
-                gr.Info("已暂停当前操作！")
-                return
+            # if FLAG['running'] == 1:
+            #     FLAG['cancel'] = 1
+            #     FLAG['running'] = 0
+            #     gr.Info("已暂停当前操作！")
+            #     return
 
             if rollback(1):
                 gr.Info("撤销成功！")

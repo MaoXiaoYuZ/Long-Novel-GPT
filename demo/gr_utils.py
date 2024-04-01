@@ -41,7 +41,7 @@ def create_model_radio():
     return gr.Radio(choices=[
         ('gpt-3.5-turbo', 'gpt-3.5-turbo-1106'), 
         ('gpt-4-turbo', 'gpt-4-1106-preview'),
-        ('chatgpt', 'chatgpt-4'),
+        ('chatgpt（暂不支持）', 'chatgpt-4'),
         ('文心3.5', 'ERNIE-Bot'),
         ('文心4.0', 'ERNIE-Bot-4')
         ], label="选择模型")
@@ -70,3 +70,11 @@ def enable_change_output(get_writer, output):
             gr.Info(e)
             return get_writer().get_output()
     output.blur(on_blur_output, output, output)
+
+def generate_cost_info(cur_messages):
+    if hasattr(cur_messages, 'cost'):
+        cost = cur_messages.cost
+        currency_symbol = cur_messages.currency_symbol
+        return gr.Markdown(f"当前操作预计消耗：{cost:.4f}{currency_symbol}", visible=True)
+    else:
+        return gr.Markdown(visible=False)
