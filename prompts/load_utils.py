@@ -1,4 +1,4 @@
-from promptflow import load_flow
+from promptflow.client import load_flow
 
 from demo.main_chat_messages import yield_join
 

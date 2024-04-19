@@ -1,5 +1,5 @@
 gradio
 openai
 qianfan
-promptflow==1.6.0
-promptflow-tools==1.3.0
+promptflow
+promptflow-tools

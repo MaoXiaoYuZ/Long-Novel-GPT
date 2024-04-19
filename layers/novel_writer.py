@@ -49,7 +49,7 @@ class NovelWriter(Writer):
         feedback = f"{self.get_input_context()}\n\n{human_feedback}"
         
         outputs = yield from run_prompt(
-            source="./prompts/新建正文/默认",
+            source="./prompts/新建正文",
             chat_messages=[],
             feedback=feedback,
             model=self.get_model(),
@@ -62,7 +62,7 @@ class NovelWriter(Writer):
         yield []
 
         outputs = yield from run_prompt(
-            source="./prompts/重写正文/默认",
+            source="./prompts/重写正文",
             chat_messages=[],
             model=self.get_model(),
             config=self.config,
@@ -78,7 +78,7 @@ class NovelWriter(Writer):
         yield []
 
         prompt = yield from run_prompt(
-            source="./prompts/润色正文/默认",
+            source="./prompts/润色正文",
             chat_messages=[],
             model=self.get_model(),
             config=self.config,

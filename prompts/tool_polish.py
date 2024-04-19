@@ -1,5 +1,5 @@
 from os import path
-from promptflow import tool, load_flow
+from promptflow.core import tool, load_flow
 
 import sys, os
 root_path = os.path.abspath(os.path.join(os.path.abspath(__file__), "../.."))
