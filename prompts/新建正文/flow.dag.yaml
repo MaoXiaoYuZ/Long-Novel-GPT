@@ -1,0 +1,52 @@
+$schema: https://azuremlschemas.azureedge.net/promptflow/latest/Flow.schema.json
+environment:
+  python_requirements_txt: requirements.txt
+inputs:
+  chat_messages:
+    type: list
+    default: []
+  model:
+    type: string
+    default: gpt-4-1106-preview
+  config:
+    type: object
+    default:
+      auto_compress_context: true
+  feedback:
+    type: string
+outputs:
+  chat_messages:
+    type: string
+    reference: ${parser.output.chat_messages}
+  text:
+    type: string
+    reference: ${parser.output.text}
+nodes:
+- name: prompt
+  type: prompt
+  source:
+    type: code
+    path: prompt.jinja2
+  inputs:
+    feedback: ${inputs.feedback}
+- name: chat
+  type: python
+  source:
+    type: code
+    path: ../../tool_chat.py
+  inputs:
+    messages: ${inputs.chat_messages}
+    prompt: ${prompt.output}
+    model: ${inputs.model}
+    response_json: false
+    parse_chat: true
+  aggregation: false
+- name: parser
+  type: python
+  source:
+    type: code
+    path: parser.py
+  inputs:
+    response_msgs: ${chat.output}
+    config: ${inputs.config}
+    human_feedback: ${inputs.feedback}

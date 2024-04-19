@@ -14,6 +14,12 @@ from demo.tab_chapters_writer import tab_chapters_writer
 from demo.tab_novel_writer import tab_novel_writer
 from demo.tab_setting import tab_setting
 
+try:
+    import demo.config  ### 可以在demo.py中配置一些api等
+except Exception:
+    pass
+
+
 info = \
 """1. GPT-3.5可能不足以生成达到签约或出版水平的小说，请优先选择GPT-4或文心4 API。
 2. 请在**设置**页面中配置OpenAI或文心API，否则无法使用。

@@ -47,7 +47,7 @@ class ChaptersWriter(Writer):
         feedback = f"{self.get_input_context()}\n\n{human_feedback}"
         
         outputs = yield from run_prompt(
-            source="./prompts/新建章节/默认",
+            source="./prompts/新建章节",
             chat_messages=[],
             feedback=feedback,
             model=self.get_model(),
@@ -91,12 +91,31 @@ class ChaptersWriter(Writer):
         yield []
 
         outputs = yield from run_prompt(
-            source="./prompts/重写章节/默认",
+            source="./prompts/生成重写章节的上下文",
+            chat_messages=[],
+            model=self.get_sub_model(),
+            config=self.config,
+            text=selected_text,
+            context=self.get_input_context(),
+            )
+
+        outputs = yield from run_prompt(
+            source="./prompts/生成重写章节的意见",
+            chat_messages=[],
+            model=self.get_model(),
+            config=self.config,
+            question=human_feedback,
+            text=selected_text,
+            context=outputs['knowledge'],
+            )
+
+        outputs = yield from run_prompt(
+            source="./prompts/重写章节",
             chat_messages=[],
             model=self.get_model(),
             config=self.config,
             text=selected_text,
-            feedback=human_feedback,
+            feedback=outputs['feedback'],
             )
         
         self.chapters[chapter_name] = self.chapters[chapter_name].replace(selected_text, outputs['text'])

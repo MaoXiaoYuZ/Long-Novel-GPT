@@ -7,21 +7,22 @@ inputs:
     default: []
   model:
     type: string
-    default: gpt-4-1106-preview
+    default: ERNIE-Bot-4
   config:
     type: object
     default:
       auto_compress_context: true
+  text:
+    type: string
   feedback:
     type: string
-    default: 小说名《商业大亨穿越到哈利波特世界，但我不会魔法》
 outputs:
   chat_messages:
     type: string
-    reference: ${parser.output.chat_messages}
+    reference: ${inputs.chat_messages}
   text:
     type: string
-    reference: ${parser.output.text}
+    reference: ${parser.output}
 nodes:
 - name: prompt
   type: prompt
@@ -29,12 +30,13 @@ nodes:
     type: code
     path: prompt.jinja2
   inputs:
+    text: ${inputs.text}
     feedback: ${inputs.feedback}
 - name: chat
   type: python
   source:
     type: code
-    path: ../../tool_chat.py
+    path: ../tool_chat.py
   inputs:
     messages: ${inputs.chat_messages}
     prompt: ${prompt.output}
@@ -49,5 +51,3 @@ nodes:
     path: parser.py
   inputs:
     response_msgs: ${chat.output}
-    config: ${inputs.config}
-    human_feedback: ${inputs.feedback}

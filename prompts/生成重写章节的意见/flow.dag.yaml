@@ -1,0 +1,53 @@
+$schema: https://azuremlschemas.azureedge.net/promptflow/latest/Flow.schema.json
+environment:
+  python_requirements_txt: requirements.txt
+inputs:
+  chat_messages:
+    type: list
+    default: []
+  model:
+    type: string
+    default: ERNIE-Bot-4
+  config:
+    type: object
+    default:
+      auto_compress_context: true
+  text:
+    type: string
+  question:
+    type: string
+  context:
+    type: string
+outputs:
+  feedback:
+    type: string
+    reference: ${parser.output}
+nodes:
+- name: prompt
+  type: prompt
+  source:
+    type: code
+    path: prompt.jinja2
+  inputs:
+    text: ${inputs.text}
+    context: ${inputs.context}
+    question: ${inputs.question}
+- name: chat
+  type: python
+  source:
+    type: code
+    path: ../tool_chat.py
+  inputs:
+    messages: ${inputs.chat_messages}
+    prompt: ${prompt.output}
+    model: ${inputs.model}
+    response_json: false
+    parse_chat: true
+  aggregation: false
+- name: parser
+  type: python
+  source:
+    type: code
+    path: parser.py
+  inputs:
+    response_msgs: ${chat.output}

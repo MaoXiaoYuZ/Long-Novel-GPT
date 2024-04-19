@@ -40,7 +40,7 @@ Long-Novel-GPT是一个基于GPT等大语言模型的长篇小说生成器。它
 
 ### 安装
 ```bash
-conda create -n lngpt python=3.10
+conda create -n lngpt python
 conda activate lngpt
 pip install -r requirements.txt
 ```

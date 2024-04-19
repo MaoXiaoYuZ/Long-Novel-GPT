@@ -1,4 +1,4 @@
-from promptflow import tool
+from promptflow.core import tool
 from promptflow.tools.common import parse_chat as pf_parse_chat
 
 import sys, os
