@@ -1,0 +1,7 @@
+tests:
+  - name: 默认_default_20240419_174325_759000
+    display_name: 默认_${variant_id}_${timestamp}
+    flow: c:\Users\maoqh\Documents\VSCode\Long-Novel-GPT\prompts\新建章节\默认
+    data: c:\Users\maoqh\Documents\VSCode\Long-Novel-GPT\prompts\新建章节\默认\data.jsonl
+    column_mapping:
+      feedback: ${data.feedback}
