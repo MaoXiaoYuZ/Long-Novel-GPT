@@ -7,7 +7,7 @@ def parse_response(response_msgs):
     content = response_msgs[-1]['content']
 
     chunks = parse_chunks_by_separators(content, [r'\S*', ])
-    if "改进意见" in chunks:
-        return chunks["改进意见"]
+    if "意见" in chunks:
+        return chunks["意见"]
     else:
-        raise Exception(f"无法解析回复，找不到改进意见！")
+        return content

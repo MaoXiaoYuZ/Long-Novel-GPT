@@ -31,7 +31,7 @@ def tab_chapters_writer(config):
             output = gr.Textbox(label="章节剧情", lines=10, interactive=True)
 
         def create_option(value):
-            available_options = ["讨论", "新建章节剧情", ]
+            available_options = ["新建章节剧情", ]
             if get_writer().get_chapter_names():
                 available_options.append("重写章节剧情")
 
@@ -44,13 +44,8 @@ def tab_chapters_writer(config):
         option = gr.Radio()
 
         def create_sub_option(option_value):
-            if option_value == '新建章节剧情':
-                return gr.Radio(["全部章节"], label="选择章节", value="")
-            elif option_value == '重写章节剧情':
-                return gr.Radio(get_writer().get_chapter_names(), label="选择章节", value='')
-            elif option_value == '讨论':
-                return gr.Radio(["全部章节"] + get_writer().get_chapter_names(), label="选择章节", value='')
-
+            return gr.Radio(visible=False)
+        
         sub_option = gr.Radio()
 
         selected_output_text = create_selected_text(output)
@@ -58,7 +53,8 @@ def tab_chapters_writer(config):
 
         def create_human_feedback(option_value):
             if option_value == '新建章节剧情':
-                return gr.Textbox(value="", label="你的意见：", lines=2, placeholder="让AI知道你的意见，这在优化阶段会更有用。")
+                value = f"创建第{len(get_writer().get_chapter_names()) + 1}章剧情：..."
+                return gr.Textbox(value=value, label="你的意见：", lines=2, placeholder="让AI知道你的意见，这在优化阶段会更有用。")
             elif option_value == '重写章节剧情':
                 return gr.Textbox(value="请从情节推动不合理，剧情不符合逻辑，条理不清晰等方面进行反思。", label="你的意见：", lines=2)
             elif option_value == '讨论':
@@ -98,10 +94,6 @@ def tab_chapters_writer(config):
         @check_running
         def on_submit(option, sub_option, human_feedback, selected_output_text):
             selected_output_text = selected_output_text.strip()
-            if sub_option == '全部章节':
-                sub_option = None
-            else:
-                sub_option = sub_option
                     
             match option:
                 case '讨论':
@@ -111,7 +103,7 @@ def tab_chapters_writer(config):
                     for messages in get_writer().init_chapters(human_feedback=human_feedback, selected_text=selected_output_text):
                         yield messages2chatbot(messages), generate_cost_info(messages)
                 case "重写章节剧情":
-                    for i, messages in enumerate(get_writer().rewrite_chatpers(chapter_name=sub_option, human_feedback=human_feedback, selected_text=selected_output_text)):
+                    for i, messages in enumerate(get_writer().rewrite_chatpers(human_feedback=human_feedback, selected_text=selected_output_text)):
                         yield messages2chatbot(messages), generate_cost_info(messages)
                         if i == 0 and not selected_output_text:
                             raise gr.Error('请先在正文栏中选定要重写的部分！')
@@ -136,9 +128,8 @@ def tab_chapters_writer(config):
         
         @gr.on(triggers=[model.select, sub_option.select, human_feedback.change], inputs=[model, option, sub_option, human_feedback, selected_output_text], outputs=[chatbot, cost_info])
         def on_cost_change(model, option, sub_option, human_feedback, selected_output_text):
-            config['lngpt'].get_writer('novel').set_cur_chapter_name(sub_option if sub_option != "全部章节" else None)
             if model: get_writer().set_model(model)
-            if option and sub_option:
+            if option:
                 messages, cost_info = next(on_submit(option, sub_option, human_feedback, selected_output_text))
                 return messages, cost_info
             else:

@@ -33,7 +33,7 @@ def tab_outline_writer(config):
 
 
         def create_option(value):
-            available_options = ["讨论", "创作小说设定", ]
+            available_options = ["创作小说设定", ]
             return gr.Radio(
                 choices=available_options,
                 label="选择你要进行的操作",

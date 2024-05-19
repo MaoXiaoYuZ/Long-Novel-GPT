@@ -7,22 +7,25 @@ inputs:
     default: []
   model:
     type: string
-    default: gpt-4-1106-preview
+    default: ERNIE-Bot-4
   config:
     type: object
     default:
       auto_compress_context: true
   text:
     type: string
-  feedback:
+  suggestion:
     type: string
+  context:
+    type: string
+    default: ""
 outputs:
   chat_messages:
     type: string
-    reference: ${parser.output.chat_messages}
+    reference: ${inputs.chat_messages}
   text:
     type: string
-    reference: ${parser.output.text}
+    reference: ${parser.output}
 nodes:
 - name: prompt
   type: prompt
@@ -31,12 +34,13 @@ nodes:
     path: prompt.jinja2
   inputs:
     text: ${inputs.text}
-    feedback: ${inputs.feedback}
+    suggestion: ${inputs.suggestion}
+    context: ${inputs.context}
 - name: chat
   type: python
   source:
     type: code
-    path: ../../tool_chat.py
+    path: ../tool_chat.py
   inputs:
     messages: ${inputs.chat_messages}
     prompt: ${prompt.output}
@@ -51,6 +55,3 @@ nodes:
     path: parser.py
   inputs:
     response_msgs: ${chat.output}
-    config: ${inputs.config}
-    text: ${inputs.text}
-    feedback: ${inputs.feedback}

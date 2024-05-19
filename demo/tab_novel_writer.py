@@ -19,6 +19,31 @@ def tab_novel_writer(config):
         return lngpt.get_writer('novel')
 
     with gr.Tab("生成正文") as tab:
+        
+        def create_chapter_option():
+            nonlocal lngpt
+            lngpt = config['lngpt']
+            default_chapter_name = "默认章节名"
+            if lngpt:
+                chapters = ["默认章节名", ] + lngpt.get_writer('chapters').get_chapter_names()
+                default_chapter_name = get_writer().get_cur_chapter_name() or "默认章节名"
+            else:
+                chapters = ["默认章节名", ]
+                
+            return gr.Radio(
+                    choices=chapters,
+                    label="选择章节",
+                    value=default_chapter_name
+                )
+        
+        chapter = gr.Radio()
+        
+        def on_select_chapter(evt: gr.SelectData):
+            if evt.value != "默认章节名":
+                config['lngpt'].get_writer('novel').set_cur_chapter_name(evt.value)
+            else:
+                config['lngpt'].get_writer('novel').set_cur_chapter_name(None)
+
         with gr.Row():
             def get_inputs_text():
                 cur_chapter_name = get_writer().get_cur_chapter_name()
@@ -35,7 +60,7 @@ def tab_novel_writer(config):
             output = gr.Textbox(label="正文", lines=10, interactive=True)
 
         def create_option(value):
-            available_options = ["讨论", "新建正文", ]
+            available_options = ["新建正文", ]
             if get_writer().get_output():
                     available_options.append("重写正文")
                     # available_options.append("润色正文")
@@ -153,9 +178,11 @@ def tab_novel_writer(config):
     
     def on_select_tab():
         if get_writer():
-            return get_inputs_text(), get_output_text(), create_option(''), create_sub_option(''), []
+            return create_chapter_option(), get_inputs_text(), get_output_text(), create_option(''), create_sub_option(''), []
         else:
             gr.Info("请先选择小说名！")
-            return gr.Textbox(''), gr.Textbox(''), gr.Radio([]), gr.Radio([]), []
+            return gr.Radio(), gr.Textbox(''), gr.Textbox(''), gr.Radio([]), gr.Radio([]), []
     
-    tab.select(on_select_tab, None, [inputs, output, option, sub_option, chatbot])
+    chapter.select(on_select_chapter).then(
+        lambda e: (get_inputs_text(), get_output_text(), create_option(''), create_sub_option(''), []), chapter, [inputs, output, option, sub_option, chatbot])
+    tab.select(on_select_tab, None, [chapter, inputs, output, option, sub_option, chatbot])

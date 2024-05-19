@@ -6,6 +6,11 @@ root_path = os.path.abspath(os.path.join(os.path.abspath(__file__), "../.."))
 if root_path not in sys.path:
     sys.path.append(root_path)
 
+try:
+    import demo.config
+except Exception:
+    pass
+
 from llm_api.chat_messages import ChatMessages
 from llm_api.openai_api import stream_chat_with_gpt
 from llm_api.chatgpt_api import stream_chat_with_chatgpt

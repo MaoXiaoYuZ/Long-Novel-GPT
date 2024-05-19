@@ -7,20 +7,19 @@ inputs:
     default: []
   model:
     type: string
-    default: ERNIE-Bot-4
+    default: ERNIE-Bot
   config:
     type: object
     default:
       auto_compress_context: true
-  feedback:
+  text:
+    type: string
+  context:
     type: string
 outputs:
-  chat_messages:
+  knowledge:
     type: string
-    reference: ${parser.output.chat_messages}
-  chapters:
-    type: string
-    reference: ${parser.output.chapters}
+    reference: ${parser.output}
 nodes:
 - name: prompt
   type: prompt
@@ -28,7 +27,8 @@ nodes:
     type: code
     path: prompt.jinja2
   inputs:
-    feedback: ${inputs.feedback}
+    text: ${inputs.text}
+    context: ${inputs.context}
 - name: chat
   type: python
   source:
@@ -45,8 +45,7 @@ nodes:
   type: python
   source:
     type: code
-    path: parser.py
+    path: ../tool_parser.py
   inputs:
+    response_type: content
     response_msgs: ${chat.output}
-    config: ${inputs.config}
-    human_feedback: ${inputs.feedback}

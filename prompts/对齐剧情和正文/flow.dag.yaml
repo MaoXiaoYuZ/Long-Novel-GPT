@@ -7,31 +7,23 @@ inputs:
     default: []
   model:
     type: string
-    default: ERNIE-Bot-4
+    default: ERNIE-Bot
   config:
     type: object
     default:
       auto_compress_context: true
-  text:
-    type: string
-  instruction:
-    type: string
-  context:
-    type: string
+  text_chunks:
+    type: list
+  plot_chunks:
+    type: list
 outputs:
-  suggestion:
+  chat_messages:
+    type: string
+    reference: ${inputs.chat_messages}
+  plot2text:
     type: string
     reference: ${parser.output}
 nodes:
-- name: prompt
-  type: prompt
-  source:
-    type: code
-    path: prompt.jinja2
-  inputs:
-    text: ${inputs.text}
-    context: ${inputs.context}
-    instruction: ${inputs.instruction}
 - name: chat
   type: python
   source:
@@ -43,6 +35,7 @@ nodes:
     model: ${inputs.model}
     response_json: false
     parse_chat: true
+    echo: false
   aggregation: false
 - name: parser
   type: python
@@ -51,3 +44,13 @@ nodes:
     path: parser.py
   inputs:
     response_msgs: ${chat.output}
+    plot_chunks: ${inputs.plot_chunks}
+    text_chunks: ${inputs.text_chunks}
+- name: prompt
+  type: prompt
+  source:
+    type: code
+    path: prompt.jinja2
+  inputs:
+    plot_chunks: ${inputs.plot_chunks}
+    text_chunks: ${inputs.text_chunks}

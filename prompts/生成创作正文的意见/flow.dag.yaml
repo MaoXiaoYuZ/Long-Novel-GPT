@@ -12,12 +12,16 @@ inputs:
     type: object
     default:
       auto_compress_context: true
-  text:
-    type: string
   instruction:
     type: string
   context:
     type: string
+  text:
+    type: string
+    default: ""
+  selected_text:
+    type: string
+    default: ""
 outputs:
   suggestion:
     type: string
@@ -29,9 +33,10 @@ nodes:
     type: code
     path: prompt.jinja2
   inputs:
-    text: ${inputs.text}
     context: ${inputs.context}
     instruction: ${inputs.instruction}
+    text: ${inputs.text}
+    selected_text: ${inputs.selected_text}
 - name: chat
   type: python
   source:

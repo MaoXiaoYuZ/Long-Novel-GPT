@@ -4,7 +4,7 @@ import json
 from layers.writer import Writer
 
 class OutlineWriter(Writer):
-    def __init__(self, output_path, model='gpt-4-1106-preview', sub_model="gpt-3.5-turbo-1106"):
+    def __init__(self, output_path, model='gpt-4-1106-preview', sub_model="auto"):
         system_prompt = \
 """现在你是一个小说家，正在和我一起合作来创作小说大纲。
 接下来让我们一步一步来，你需要遵照我的指令逐步完成整个大纲的创作，期间我还可能让你根据我的意见进行修改。
