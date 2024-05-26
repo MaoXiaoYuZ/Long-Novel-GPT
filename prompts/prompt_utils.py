@@ -1,5 +1,7 @@
 import difflib
 import json
+import yaml
+from jinja2 import Environment, FileSystemLoader  
 
 import re
 import sys, os
@@ -66,3 +68,15 @@ def match_chunk_span_in_text(chunk, text):
         if chunk_i == len(chunk):
             r = text_i
             return l, r
+
+def load_yaml(file_path):
+    with open(file_path, 'r', encoding='utf-8') as file:  
+        return yaml.safe_load(file)  
+    
+def load_jinja2_template(file_path):
+    env = Environment(loader=FileSystemLoader(os.path.dirname(file_path)))
+    template = env.get_template(os.path.basename(file_path)) 
+
+    return template 
+
+

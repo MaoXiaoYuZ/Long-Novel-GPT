@@ -67,7 +67,7 @@ def enable_change_output(get_writer, output):
             get_writer().set_output(output)
             return gr.Textbox()
         except Exception as e:
-            gr.Info(e)
+            gr.Info(str(e))
             return get_writer().get_output()
     output.blur(on_blur_output, output, output)
 

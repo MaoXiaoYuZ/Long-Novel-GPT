@@ -43,7 +43,7 @@ def run_and_echo_yield_func(func, *args, **kwargs):
     all_messages = []
     for messages in func(*args, **kwargs):
         all_messages.append(messages)
-        new_echo_text = "".join(f"{msg['role']}:\n{msg['content']}\n" for msg in messages)
+        new_echo_text = "\n".join(f"{msg['role']}:\n{msg['content']}" for msg in messages)
         if new_echo_text.startswith(echo_text):
             delta_echo_text = new_echo_text[len(echo_text):]
         else:

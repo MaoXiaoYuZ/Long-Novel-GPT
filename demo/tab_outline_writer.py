@@ -1,7 +1,7 @@
 import json
 import gradio as gr
 
-from demo.gr_utils import messages2chatbot, block_diff_text, create_model_radio, generate_cost_info
+from demo.gr_utils import enable_change_output, messages2chatbot, block_diff_text, create_model_radio, generate_cost_info
 
 
 def tab_outline_writer(config):
@@ -30,7 +30,7 @@ def tab_outline_writer(config):
                 return get_writer().get_output()
 
             output = gr.Textbox(label="生成的小说大纲", lines=10, interactive=True)
-
+            enable_change_output(get_writer, output)
 
         def create_option(value):
             available_options = ["创作小说设定", ]
@@ -54,7 +54,7 @@ def tab_outline_writer(config):
                 if writer.outline:
                     human_feedback_string = writer.get_config("refine_outline_setting")
                 else:
-                    human_feedback_string = writer.get_config("init_outline_setting")
+                    human_feedback_string = writer.get_config("write_outline")
             elif option_value == '讨论':
                 human_feedback_string = "不要急于得出结论，让我们先一步一步的思考"
 
@@ -103,7 +103,7 @@ def tab_outline_writer(config):
                     for messages in get_writer().discuss(human_feedback):
                         yield messages2chatbot(messages), generate_cost_info(messages)
                 case '创作小说设定':
-                    for messages in get_writer().init_outline_setting(human_feedback=human_feedback):
+                    for messages in get_writer().write_outline(human_feedback=human_feedback):
                         yield messages2chatbot(messages), generate_cost_info(messages)
         
         def save():

@@ -18,7 +18,7 @@ class ChaptersWriter(Writer):
         self.outline_writer = outline_writer
     
     def get_input_context(self):
-        return self.outline_writer.idea + '\n\n' + self.outline_writer.get_outline_content()
+        return self.outline_writer.idea + '\n\n' + self.outline_writer.get_output()
     
     def get_output(self):
         return construct_chunks_and_separators({k:v for k, v in self.chapters.items()})

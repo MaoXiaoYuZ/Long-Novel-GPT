@@ -1,3 +1,4 @@
+import importlib
 from promptflow.client import load_flow
 
 from demo.main_chat_messages import yield_join
@@ -16,6 +17,12 @@ def run_prompt(source, **kwargs):
         f.write('\n')
 
     result = yield from yield_join(flow, **kwargs)
+
+    return result
+
+def run_prompt_by_func(func, **kwargs):
+
+    result = yield from yield_join(func, **kwargs)
 
     return result
 
