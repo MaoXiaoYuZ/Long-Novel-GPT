@@ -30,7 +30,7 @@ info = \
 """
 
 with gr.Blocks() as demo:
-    gr.Markdown("# Long-Novel-GPT 1.4")
+    gr.Markdown("# Long-Novel-GPT 1.5")
     with gr.Accordion("使用指南"):
         gr.Markdown(info)
     config = {
