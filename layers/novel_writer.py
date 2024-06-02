@@ -2,14 +2,19 @@ from collections import defaultdict
 import math
 import re
 import json
+import threading
 
 from layers.writer import ChatMessages, Writer
-from prompts.load_utils import run_prompt, run_prompt_no_echo
-from layers.layer_utils import split_text_into_paragraphs, detect_max_edit_span
+from layers.layer_utils import split_text_into_paragraphs, detect_max_edit_span, run_yield_func
 
 import numpy as np
 from itertools import chain 
 import bisect
+
+from prompts.生成创作正文的上下文 import prompt as generate_context
+from prompts.生成创作正文的意见 import prompt as generate_suggestion
+from prompts.创作正文 import prompt as write_text
+from prompts.对齐剧情和正文 import prompt as match_plot_and_text
 
 class NovelWriter(Writer):
     def __init__(self, output_path, model='gpt-4-1106-preview', sub_model="auto"):
@@ -20,7 +25,33 @@ class NovelWriter(Writer):
         self.cur_chapter_name = None
         self.plot_text_pairs = []
 
+
         self.load()
+
+        self.update_thread = None
+        self.update_lock = threading.Lock()
+        self.stop_event = threading.Event()
+        self.timer = None
+        self.delay = 3
+
+    # 当剧情/正文发生修改时，开启一个更新剧情和正文对应关系的线程
+    def start_update(self):
+        with self.update_lock:
+            if self.update_thread and self.update_thread.is_alive():
+                self.stop_event.set()
+                self.update_thread.join()
+                self.stop_event.clear()
+            
+            if self.timer:
+                self.timer.cancel()
+            self.timer = threading.Timer(self.delay, self._start_update_thread)
+            self.timer.start()
+
+    def _start_update_thread(self):
+        with self.update_lock:
+            self.update_thread = threading.Thread(target=self.update_plot)
+            self.update_thread.start()
+            print('start update thread!')
     
     def init_by_outline_and_chapters_writer(self, outline_writer, chapters_writer):
         self.outline_writer = outline_writer
@@ -54,7 +85,7 @@ class NovelWriter(Writer):
         if not text.strip():
             return
 
-        if self.plot_text_pairs:
+        if self.plot_text_pairs and all(len(e) == 2 for e in self.plot_text_pairs):
             plot_chunks, text_chunks = [e[0] for e in self.plot_text_pairs], [e[1] for e in self.plot_text_pairs]
             concat_plot, concat_text = "".join(plot_chunks), "".join(chain.from_iterable(text_chunks))
             if concat_plot == plot and concat_text == text:
@@ -69,7 +100,7 @@ class NovelWriter(Writer):
                 new_text_chunks = split_text_into_paragraphs(text)
                 l, r = detect_max_edit_span(list(chain.from_iterable(text_chunks)), new_text_chunks)
                 cumsum = np.cumsum([0, ] + [len(e) for e in text_chunks]).tolist()
-                plot_l, plot_r = bisect.bisect_right(cumsum, l) - 1, bisect.bisect_right(cumsum, cumsum[-1] + r)
+                plot_l, plot_r = bisect.bisect_right(cumsum, l) - 1, min(bisect.bisect_right(cumsum, cumsum[-1] + r), len(plot_chunks))
                 text_l, text_r = cumsum[plot_l], cumsum[plot_r]
 
                 self._update_plot(plot_l, plot_r, new_text_chunks=new_text_chunks[text_l: len(new_text_chunks) - (cumsum[-1] - text_r)])
@@ -90,14 +121,18 @@ class NovelWriter(Writer):
         if r - l == 1:
             self.plot_text_pairs[l] = (new_plot_chunks[0], (new_text_chunks))
         else:
-            output = run_prompt_no_echo(
-                source="./prompts/对齐剧情和正文",
-                chat_messages=[],
-                model=self.get_sub_model(),
-                config=self.config,
-                plot_chunks=new_plot_chunks,
-                text_chunks=new_text_chunks
-                )
+            try:
+                gen = match_plot_and_text.main(
+                    model=self.get_sub_model(),
+                    plot_chunks=new_plot_chunks,
+                    text_chunks=new_text_chunks
+                    )
+                while True:
+                    next(gen)
+                    if self.stop_event.is_set():
+                        return
+            except StopIteration as e:
+                output = e.value
             
             plot2text = output['plot2text']
 
@@ -142,33 +177,25 @@ class NovelWriter(Writer):
         chapter_name = self.cur_chapter_name if self.cur_chapter_name else '默认章节名'
         self.chapter2text[chapter_name] = chapter_text
 
+        self.start_update()
+
     def get_attrs_needed_to_save(self):
         return [('chapter2text', 'chapter2text.json'), ('chat_history', 'novel_chat_history.json')]
     
     def init_text(self, human_feedback='', selected_text=''):
-        yield []
-
-        self.set_output("")
-
-        outputs = yield from run_prompt(
-            source="./prompts/生成创作正文的意见",
-            chat_messages=[],
+        outputs = yield from generate_suggestion.main(
             model=self.get_model(),
-            config=self.config,
             instruction=human_feedback,
             text="无",
-            selected_text="无",
             context=f"###剧情\n{self.get_plot()}",
+            selected_text=None,
             )
 
-        outputs = yield from run_prompt(
-            source="./prompts/创作正文",
-            chat_messages=[],
+        outputs = yield from write_text.main(
             model=self.get_model(),
-            config=self.config,
-            text="无",
             suggestion=outputs['suggestion'],
             context=f"###剧情\n{self.get_plot()}",
+            text=None,
             )
         
         newtext = outputs['text']
@@ -186,30 +213,22 @@ class NovelWriter(Writer):
         assert len(selected_text) > 0, '需要先选定要重写的内容'
         assert len(selected_text) > 7, '需要重写的内容过短'
     
-        yield []
-
         selected_plot_chunk, selected_text_chunk = self.get_plot_and_text_containing_text(selected_text)
         context_plot_chunk, context_text_chunk = self.get_plot_and_text_containing_text(selected_text, context_ratio=1)
 
-        outputs = yield from run_prompt(
-            source="./prompts/生成创作正文的意见",
-            chat_messages=[],
+        outputs = yield from generate_suggestion.main(
             model=self.get_model(),
-            config=self.config,
             instruction=human_feedback,
             text=context_text_chunk,
-            selected_text=selected_text_chunk,
             context=f"###剧情：\n{context_plot_chunk}",
+            selected_text=selected_text_chunk,
             )
 
-        outputs = yield from run_prompt(
-            source="./prompts/创作正文",
-            chat_messages=[],
+        outputs = yield from write_text.main(
             model=self.get_model(),
-            config=self.config,
-            text=selected_text_chunk,
             suggestion=outputs['suggestion'],
             context=f"###剧情：\n{selected_plot_chunk}",
+            text=selected_text_chunk,
             )
         
         newtext = outputs['text']
@@ -217,11 +236,8 @@ class NovelWriter(Writer):
         self.set_output(self.get_output().replace(selected_text_chunk, newtext))
 
     def construct_context(self, query, index):
-        outputs = yield from run_prompt(
-            source="./prompts/生成创作正文的上下文",
-            chat_messages=[],
+        outputs = yield from generate_context.main(
             model=self.get_sub_model(),
-            config=self.config,
             text=query,
             context=index,
             )

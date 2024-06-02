@@ -55,14 +55,6 @@ def stream_chat_with_wenxin(messages, model='ERNIE-Bot', response_json=False):
         messages.cost = count_wenxin_api_cost(model, context_tokens, messages[-1:].get_estimated_tokens())
         yield messages
     
-    if response_json:
-        pattern = r'```json(.*?)```'
-        match = re.search(pattern, messages[-1]['content'], re.DOTALL)
-
-        if match:
-            messages[-1]['content'] = match.group(1)
-        else:
-            raise Exception('无法解析文心一言返回结果！')
     return messages
 
 def test_wenxin_api():

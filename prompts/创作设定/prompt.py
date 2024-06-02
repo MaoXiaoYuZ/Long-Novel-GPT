@@ -1,14 +1,8 @@
 import os
 from prompts.chat_utils import chat
 from prompts.prompt_utils import parse_chunks_by_separators, match_code_block, load_jinja2_template
-from promptflow.tracing import trace
 
 
-# env = Environment(loader=FileSystemLoader(os.dirname(os.path.join(__file__))))
-# template = env.get_template('prompt.jinja2')  
-
-
-@trace
 def parser(response_msgs, chunks):
     content = response_msgs[-1]['content']
     blocks = match_code_block(content)
@@ -21,8 +15,6 @@ def parser(response_msgs, chunks):
 
     return chunks
 
-
-@trace
 def main(model, suggestion, context=None, chunks=None):
     template = load_jinja2_template(os.path.join(os.path.dirname(os.path.join(__file__)), "prompt.jinja2"))
 
@@ -30,11 +22,12 @@ def main(model, suggestion, context=None, chunks=None):
                              context=context,
                              chunks="\n\n".join([f"###{k}\n{v}" for k, v in chunks.items()]) if chunks else None)
     
-    response_msgs = chat([], prompt, model, parse_chat=True)
+    response_msgs = yield from chat([], prompt, model, parse_chat=True)
 
     updated_chunks = parser(response_msgs, chunks)
 
     return {'updated_chunks': updated_chunks, 'response_msgs':response_msgs}
-    
+
+
 
 

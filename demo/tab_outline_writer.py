@@ -1,4 +1,5 @@
 import json
+import time
 import gradio as gr
 
 from demo.gr_utils import enable_change_output, messages2chatbot, block_diff_text, create_model_radio, generate_cost_info
@@ -6,10 +7,6 @@ from demo.gr_utils import enable_change_output, messages2chatbot, block_diff_tex
 
 def tab_outline_writer(config):
     lngpt = config['lngpt']
-    FLAG = {
-        'running': 0,
-        'cancel': 0,
-    }
 
     def get_writer():
         nonlocal lngpt
@@ -20,11 +17,10 @@ def tab_outline_writer(config):
 
     with gr.Tab("生成大纲") as tab:
         with gr.Row():
-            with gr.Column():
-                def get_inputs_text():
-                    return get_writer().get_input_context()
+            def get_inputs_text():
+                return get_writer().get_input_context()
 
-                inputs = gr.Textbox(label="这是一部什么样的小说？", lines=10, interactive=False)
+            inputs = gr.Textbox(label="这是一部什么样的小说？", lines=10, interactive=False)
 
             def get_output_text():
                 return get_writer().get_output()
@@ -43,7 +39,7 @@ def tab_outline_writer(config):
         option = gr.Radio()
 
         def create_sub_option(option_value):
-            return gr.Radio(["全部章节"], label="选择章节", value="", visible=False)
+            return gr.Radio(visible=False)
 
         sub_option = gr.Radio()
 
@@ -68,28 +64,34 @@ def tab_outline_writer(config):
         option.select(on_select_option, None, [sub_option, human_feedback])
 
         cost_info = gr.Markdown('当前操作预计消耗：0$')
-        start_button = gr.Button("开始")
-        rollback_button = gr.Button("撤销（不可撤销正在进行的操作）")
+        start_button = gr.Button("开始创作", variant='primary')
+
+        with gr.Row():
+            resubmit_button = gr.Button("重来")
+            cancel_button = gr.Button("取消")
+            rollback_button = gr.Button("回退")
+
+            resubmit_button.click(lambda: config.update(resubmit_flag=True), [], [])
 
         chatbot = gr.Chatbot()
 
         def check_running(func):
-            def wrapper(*args, **kwargs):
-                # if FLAG['running'] == 1:
-                #     gr.Info("当前有操作正在进行，请稍后再试！")
-                #     return
-
-                FLAG['running'] = 1
+            def wrapper(option, sub_option, human_feedback):
                 try:
-                    for ret in func(*args, **kwargs):
-                        if FLAG['cancel']:
-                            FLAG['cancel'] = 0
-                            break
-                        yield ret
+                    config['resubmit_flag'] = True
+                    while config['resubmit_flag']:
+                        config['resubmit_flag'] = False
+
+                        for ret in func(option, sub_option, human_feedback):
+                            yield ret
+                            
+                            if config['resubmit_flag']:
+                                break
+                            
                 except Exception as e:
+                    import traceback
+                    traceback.print_exc()
                     raise gr.Error(str(e))
-                finally:
-                    FLAG['running'] = 0
             return wrapper
         
         @check_running
@@ -101,10 +103,10 @@ def tab_outline_writer(config):
             match option:
                 case '讨论':
                     for messages in get_writer().discuss(human_feedback):
-                        yield messages2chatbot(messages), generate_cost_info(messages)
+                        yield messages2chatbot(messages), generate_cost_info(messages), None
                 case '创作小说设定':
                     for messages in get_writer().write_outline(human_feedback=human_feedback):
-                        yield messages2chatbot(messages), generate_cost_info(messages)
+                        yield messages2chatbot(messages), generate_cost_info(messages), gr.update(value="创作小说设定...")
         
         def save():
             lngpt.save('outline')
@@ -112,12 +114,9 @@ def tab_outline_writer(config):
         def rollback(i):
             return lngpt.rollback(i, 'outline')  
         
-        def on_roll_back():
-            # if FLAG['running'] == 1:
-            #     FLAG['cancel'] = 1
-            #     FLAG['running'] = 0
-            #     gr.Info("已暂停当前操作！")
-            #     return
+        def on_roll_back(start_button):
+            if start_button != "开始创作":
+                raise Exception('先取消正在进行的操作再回退！')
 
             if rollback(1):
                 gr.Info("撤销成功！")
@@ -131,20 +130,27 @@ def tab_outline_writer(config):
             else:
                 return None, None
             if option:
-                messages, cost_info = next(on_submit(option, sub_option, human_feedback))
+                messages, cost_info, _ = next(on_submit(option, sub_option, human_feedback))
                 return messages, cost_info
             else:
                 return None, None
 
-        start_button.click(on_submit, [option, sub_option, human_feedback], [chatbot, cost_info]).success(
+        event_submit = start_button.click(lambda: gr.update(interactive=False), [], start_button).then(
+            on_submit, [option, sub_option, human_feedback], [chatbot, cost_info, start_button])
+
+        fn_enable_submit = dict(fn=lambda: gr.update(interactive=True, value='开始创作'), inputs=None, outputs=[start_button, ])
+        
+        event_submit.success(
             save).then(
             lambda option: (get_output_text(), create_option(''), create_sub_option(option)), option, [output, option, sub_option]
-        )
+        ).then(**fn_enable_submit)
 
-        rollback_button.click(on_roll_back, None, None).success(
+        cancel_button.click(fn=lambda: gr.update(interactive=True), inputs=None, outputs=[start_button, ], cancels=[event_submit, ]).then(**fn_enable_submit)
+
+        rollback_button.click(on_roll_back, start_button, None).success(
             lambda option: (get_output_text(), create_option(''), create_sub_option(option), []), option, [output, option, sub_option, chatbot]
         )
-    
+
     def on_select_tab():
         if get_writer():
             return get_inputs_text(), get_output_text(), create_option(''), create_sub_option(''), []

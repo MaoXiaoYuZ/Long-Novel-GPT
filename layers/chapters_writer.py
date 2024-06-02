@@ -6,6 +6,12 @@ from layers.writer import Writer
 from prompts.load_utils import run_prompt
 from prompts.prompt_utils import parse_chunks_by_separators, construct_chunks_and_separators
 
+from prompts.生成创作章节的上下文 import prompt as generate_context
+from prompts.生成创作章节的意见 import prompt as generate_write_suggestion
+from prompts.生成重写章节的意见 import prompt as generate_rewrite_suggestion
+from prompts.创作章节 import prompt as write_chapter
+
+
 class ChaptersWriter(Writer):
     def __init__(self, output_path, model='gpt-4-1106-preview', sub_model="auto"):
         super().__init__('', output_path, model, sub_model)
@@ -44,27 +50,19 @@ class ChaptersWriter(Writer):
     
     def init_chapters(self, human_feedback='', selected_text=''):
         # messages = self.get_chat_history()
-        yield []
-
         context = self.get_input_context()
         
-        outputs = yield from run_prompt(
-            source="./prompts/生成创作章节的意见",
-            chat_messages=[],
+        outputs = yield from generate_write_suggestion.main(
             model=self.get_model(),
-            config=self.config,
             instruction=human_feedback,
             context=context,
             )
 
-        outputs = yield from run_prompt(
-            source="./prompts/创作章节",
-            chat_messages=[],
+        outputs = yield from write_chapter.main(
             model=self.get_model(),
-            config=self.config,
-            text=selected_text,
             suggestion=outputs['suggestion'],
             context=context,
+            text=selected_text,
             )
 
         self.update_output(outputs['text'])
@@ -72,11 +70,8 @@ class ChaptersWriter(Writer):
         # self.update_chat_history(context_messages)
 
     def construct_context(self, query, index):
-        outputs = yield from run_prompt(
-            source="./prompts/生成创作章节的上下文",
-            chat_messages=[],
+        outputs = yield from generate_context.main(
             model=self.get_sub_model(),
-            config=self.config,
             text=query,
             context=index,
             )
@@ -93,28 +88,20 @@ class ChaptersWriter(Writer):
         assert len(selected_text) > 7, '需要重写的内容过短'
         assert human_feedback, "意见不能为空！"
 
-        yield []
-
         context = yield from self.construct_context(selected_text, self.get_input_context())
 
-        outputs = yield from run_prompt(
-            source="./prompts/生成重写章节的意见",
-            chat_messages=[],
+        outputs = yield from generate_rewrite_suggestion.main(
             model=self.get_model(),
-            config=self.config,
             instruction=human_feedback,
             text=selected_text,
             context=context,
             )
 
-        outputs = yield from run_prompt(
-            source="./prompts/创作章节",
-            chat_messages=[],
+        outputs = yield from write_chapter.main(
             model=self.get_model(),
-            config=self.config,
-            text=selected_text,
             suggestion=outputs['suggestion'],
             context=context,
+            text=selected_text,
             )
         
         self.set_output(self.get_output().replace(selected_text, outputs['text']))

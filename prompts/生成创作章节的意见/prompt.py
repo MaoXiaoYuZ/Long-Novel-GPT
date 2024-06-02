@@ -8,11 +8,10 @@ def parser(response_msgs):
     return parse_named_chunk(response_msgs, '意见')
 
 
-def main(model, instruction=None, chunks=None, context=None):
+def main(model, instruction=None, context=None):
     template = load_jinja2_template(os.path.join(os.path.dirname(os.path.join(__file__)), "prompt.jinja2"))
 
     prompt = template.render(instruction=instruction, 
-                             chunks="\n\n".join([f"###{k}\n{v}" for k, v in chunks.items()]) if chunks else None,
                              context=context)
     
     response_msgs = yield from chat([], prompt, model, parse_chat=True)

@@ -5,6 +5,8 @@ import gradio as gr
 import random
 from glob import glob
 
+os.environ["no_proxy"] = "localhost,127.0.0.1,::1"
+
 import sys
 sys.path.append(os.path.abspath(os.path.join(__file__, '../..')))
 
@@ -31,7 +33,12 @@ with gr.Blocks() as demo:
     gr.Markdown("# Long-Novel-GPT 1.4")
     with gr.Accordion("使用指南"):
         gr.Markdown(info)
-    config = {'lngpt': None, 'chat_context_limit': 2000, 'auto_compress_context': True}
+    config = {
+        'lngpt': None, 
+        'chat_context_limit': 2000, 
+        'auto_compress_context': True,
+        'resubmit_flag': False
+        }
     tab_main_page(config)
     tab_outline_writer(config)
     tab_chapters_writer(config)

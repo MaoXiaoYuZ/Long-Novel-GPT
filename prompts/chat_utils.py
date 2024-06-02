@@ -1,6 +1,5 @@
 from promptflow.core import tool
 from promptflow.tools.common import parse_chat as pf_parse_chat
-from promptflow.tracing import trace
 
 import sys, os
 root_path = os.path.abspath(os.path.join(os.path.abspath(__file__), "../.."))
@@ -29,7 +28,6 @@ def _chat(messages, model, max_tokens=4000, response_json=False, n=1):
         raise NotImplementedError(f"未知的model:{model}！")
     return ret
 
-@trace
 def chat(messages, prompt, model, max_tokens=4000, response_json=False, echo=True, parse_chat=False):
     if prompt:
         if parse_chat:
@@ -37,11 +35,7 @@ def chat(messages, prompt, model, max_tokens=4000, response_json=False, echo=Tru
         else:
             messages = messages + [{'role': 'user', 'content': prompt}]
 
-    gen = _chat(messages, model, max_tokens=max_tokens, response_json=response_json, n=1)
-    try:
-        while True:
-            msgs = next(gen)
-            if echo:
-                update_main_chat_messages(msgs)
-    except StopIteration as e:
-        return e.value
+    result = yield from _chat(messages, model, max_tokens=max_tokens, response_json=response_json, n=1)
+
+    return result
+    

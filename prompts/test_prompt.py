@@ -14,7 +14,7 @@ def json_load(input_file):
 
 
 if __name__ == "__main__":
-    path = "./prompts/重写章节"
+    path = "./prompts/创作正文"
     kwargs = json_load(os.path.join(path, 'data.jsonl'))[0]
 
     gen = run_prompt(source=path, **kwargs)

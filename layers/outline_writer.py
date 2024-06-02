@@ -56,7 +56,7 @@ class OutlineWriter(Writer):
         text_chunks = [f"{e[0]}:{e[1]}".replace('\n', '').replace('\r', '') for e in tuple_chunks]
 
         if query:
-            outputs = yield from run_prompt_by_func(retrieve_reference.main, 
+            outputs = yield from retrieve_reference.main( 
                 model=self.get_sub_model(),
                 question=query,
                 text_chunks=text_chunks,
@@ -72,11 +72,9 @@ class OutlineWriter(Writer):
         return {k:v for k, v in tuple_chunks}
     
     def write_outline(self, human_feedback=None):
-        yield []
-
         related_chunks = yield from self.generate_context(human_feedback, 5)
         
-        outputs = yield from run_prompt_by_func(generate_suggestion.main,
+        outputs = yield from generate_suggestion.main(
             model=self.get_model(),
             instruction=human_feedback,
             context=self.get_input_context(),
@@ -85,13 +83,13 @@ class OutlineWriter(Writer):
         
         refined_related_chunks = yield from self.generate_context(outputs['suggestion'], 3, related_chunks)
         
-        outputs = yield from run_prompt_by_func(write_outline.main, 
+        outputs = yield from write_outline.main( 
             model=self.get_model(),
             suggestion=outputs['suggestion'],
             context=self.get_input_context(), 
             chunks=refined_related_chunks,
             )
-        
+         
         updated_chunks = outputs['updated_chunks']
         
         self.outline.update(updated_chunks)

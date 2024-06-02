@@ -55,6 +55,14 @@ def run_and_echo_yield_func(func, *args, **kwargs):
         echo_text = echo_text + delta_echo_text
     return all_messages
 
+def run_yield_func(func, *args, **kwargs):
+    gen = func(*args, **kwargs)
+    try:
+        while True:
+            next(gen)
+    except StopIteration as e:
+        return e.value
+
 if __name__ == "__main__":
     print(detect_max_edit_span("我吃西红柿", "我不喜欢吃西红柿"))
     print(detect_max_edit_span("我吃西红柿", "不喜欢吃西红柿"))

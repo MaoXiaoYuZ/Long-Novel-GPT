@@ -11,6 +11,8 @@ def messages2chatbot(messages):
             chatbot.append([content, None])
         else:
             chatbot[-1][1] = content
+    
+    chatbot.extend([None, None] for _ in range(10-len(chatbot)))
 
     return chatbot
 
