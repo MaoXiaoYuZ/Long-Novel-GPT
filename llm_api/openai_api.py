@@ -35,10 +35,7 @@ def stream_function_calling_with_gpt(messages, tools, model='gpt-3.5-turbo-1106'
     if client is None:
         raise Exception('未配置openai_api！')
     assert model in gpt_model_config, f"model必须是{list(gpt_model_config.keys())}中的一个！"
-    messages = ChatMessages(messages, model=model, currency_symbol='$')
-    context_tokens = messages.get_estimated_tokens()
-    context_cost = count_gpt_api_cost(model, context_tokens, 0)
-    messages.cost = context_cost
+    messages = ChatMessages(messages, model=model)
     yield messages
     
     response = client.chat.completions.create(
@@ -59,7 +56,6 @@ def stream_function_calling_with_gpt(messages, tools, model='gpt-3.5-turbo-1106'
             func_call["name"] = delta_tool_call.function.name or func_call["name"]
             func_call["arguments"] += delta_tool_call.function.arguments or ""
         messages[-1]['content'] = content + "\n" + json.dumps(list(function_calls.values()), ensure_ascii=False, indent=1)
-        messages.cost = count_gpt_api_cost(model, context_tokens, messages[-1:].get_estimated_tokens())
         yield messages
 
     return messages, content, list(function_calls.values())        
@@ -69,9 +65,6 @@ def stream_chat_with_gpt(messages, model='gpt-3.5-turbo-1106', max_tokens=4_096,
         raise Exception('未配置openai_api！')
     assert model in gpt_model_config, f"model必须是{list(gpt_model_config.keys())}中的一个！"
     messages = ChatMessages(messages, model=model, currency_symbol='$')
-    context_tokens = messages.get_estimated_tokens()
-    context_cost = count_gpt_api_cost(model, context_tokens, 0)
-    messages.cost = context_cost
     yield messages
     
     chatstream = client.chat.completions.create(
@@ -89,7 +82,6 @@ def stream_chat_with_gpt(messages, model='gpt-3.5-turbo-1106', max_tokens=4_096,
         for choice in part.choices:
             content[choice.index] += choice.delta.content or ''
             messages[-1]['content'] = content if n > 1 else content[0]
-            messages.cost = count_gpt_api_cost(model, context_tokens, messages[-1:].get_estimated_tokens())
             yield messages
     
     return messages

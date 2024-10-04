@@ -15,23 +15,45 @@ def count_characters(text):
 
     return chinese_count, english_count, other_count
 
+
+model_config = {
+    "ERNIE-Bot":{
+        "Pricing": (0.012, 0.012),
+        "currency_symbol": '￥',
+    },
+    "ERNIE-Bot-4":{
+        "Pricing": (0.12, 0.12),
+        "currency_symbol": '￥',
+    },
+}
+
 class ChatMessages(list):
     def __init__(self, *args, **kwargs):
         super().__init__(*args)
         self.model = kwargs['model'] if 'model' in kwargs else None
-        self.cost = kwargs['cost'] if 'cost' in kwargs else None
-        self.currency_symbol = kwargs['currency_symbol'] if 'currency_symbol' in kwargs else None
+        
+        assert 'currency_symbol' not in kwargs
     
     def __getitem__(self, index):
         result = super().__getitem__(index)
         if isinstance(index, slice):
-            return ChatMessages(result, model=self.model, cost=self.cost, currency_symbol=self.currency_symbol)
+            return ChatMessages(result, model=self.model)
         return result
     
     def __add__(self, other):
         if isinstance(other, list):
-            return ChatMessages(super().__add__(other), model=self.model, cost=self.cost, currency_symbol=self.currency_symbol)
+            return ChatMessages(super().__add__(other), model=self.model)
         return NotImplemented 
+
+    def count_message_tokens(self):
+        from tokencost import count_message_tokens  # 和gradio库冲突
+        if self.model in model_config:
+            return self.get_estimated_tokens()
+        else:
+            return count_message_tokens(self, self.model)
+    
+    def copy(self):
+        return ChatMessages(self, model=self.model)
     
     def get_estimated_tokens(self):
         num_tokens = 0
@@ -41,5 +63,27 @@ class ChatMessages(list):
                 num_tokens += chinese_count + english_count // 5 + other_count
         return num_tokens
     
-    def copy(self):
-        return ChatMessages(self, model=self.model, cost=self.cost, currency_symbol=self.currency_symbol)
+    @property
+    def cost(self):
+        from tokencost import calculate_all_costs_and_tokens
+        if len(self) == 0:
+            return 0
+        
+        if self.model in model_config:
+            return model_config[self.model]["Pricing"][0] * self[:-1].count_message_tokens() / 1_000 + model_config[self.model]["Pricing"][1] * self[-1:].count_message_tokens() / 1_000
+        else:
+            details = calculate_all_costs_and_tokens(self[:-1].get_estimated_tokens(), self[-1:], self.model)
+            return details['completion_cost'] + details['prompt_cost']
+    
+    @property
+    def response(self):
+        return self[-1]['content']
+    
+    @property
+    def currency_symbol(self):
+        if self.model in model_config:
+            return model_config[self.model]["currency_symbol"]
+        else:
+            return '$'
+    
+

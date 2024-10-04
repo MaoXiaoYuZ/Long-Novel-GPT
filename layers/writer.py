@@ -84,7 +84,7 @@ class Writer:
             print(msg['content'])
     
     def count_messages_length(self, messages):
-        return messages.get_estimated_tokens()
+        return messages.count_message_tokens()
     
     def string_in_messages(self, string, messages):
         return any([string in msg['content'] for msg in messages])

@@ -1,44 +1,27 @@
-import re
 import qianfan
-
 from .chat_messages import ChatMessages
 
-baidu_config = {
-    'ak': '',
-    'sk': ''
-}
-
-#https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application
+# https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application
 
 wenxin_model_config = {
     "ERNIE-Bot":{
         "Pricing": (0.012, 0.012),
+        "currency_symbol": '￥',
     },
     "ERNIE-Bot-4":{
         "Pricing": (0.12, 0.12),
+        "currency_symbol": '￥',
     },
 }
 
-client = None
 
-def set_wenxin_api_config(**kwargs):
-    global client
-    baidu_config.update(kwargs)
-    client = qianfan.ChatCompletion(**baidu_config)
+def stream_chat_with_wenxin(messages, model='ERNIE-Bot', response_json=False, ak=None, sk=None):
+    if ak is None or sk is None:
+        raise Exception('未提供有效的 ak 和 sk！')
 
+    client = qianfan.ChatCompletion(ak=ak, sk=sk)
 
-def count_wenxin_api_cost(model, context_tokens, completion_tokens):
-    cost = wenxin_model_config[model]["Pricing"][0] * context_tokens / 1_000 + wenxin_model_config[model]["Pricing"][1] * completion_tokens / 1_000
-    return cost
-
-def stream_chat_with_wenxin(messages, model='ERNIE-Bot', response_json=False):
-    if client is None:
-        raise Exception('未配置文心一言api！')
-
-    messages = ChatMessages(messages, model=model, currency_symbol='￥')
-    context_tokens = messages.get_estimated_tokens()
-    context_cost = count_wenxin_api_cost(model, context_tokens, 0)
-    messages.cost = context_cost
+    messages = ChatMessages(messages, model=model)
     yield messages
     
     chatstream = client.do(model=model, 
@@ -52,23 +35,26 @@ def stream_chat_with_wenxin(messages, model='ERNIE-Bot', response_json=False):
     for part in chatstream:
         content += part['body']['result'] or ''
         messages[-1]['content'] = content
-        messages.cost = count_wenxin_api_cost(model, context_tokens, messages[-1:].get_estimated_tokens())
         yield messages
     
     return messages
 
-def test_wenxin_api():
+def test_wenxin_api(ak, sk):
     report = 'User:回答这是一个测试。\n'
     for model in wenxin_model_config:
         try:
-            stream = stream_chat_with_wenxin([{'role': 'user', 'content': "回答这是一个测试。"}, ], model=model, response_json=False)
-            response = list(stream)[-1][-1]['content']
+            stream = stream_chat_with_wenxin([{'role': 'user', 'content': "回答这是一个测试。"}],
+                                             model=model,
+                                             response_json=False,
+                                             ak=ak,
+                                             sk=sk)
+            messages = list(stream)[-1]
         except Exception as e:
             report += f"(ERROR){model}:{e}\n"
+            raise e
         else:
-            report += f"(Success){model}:{response}\n"
+            report += f"(Success){model}:{messages.response}(Cost:{messages.cost}{messages.currency_symbol})\n"
     return report
     
-    
 if __name__ == '__main__':
-    print(test_wenxin_api())
+    print(test_wenxin_api(ak='your_ak_here', sk='your_sk_here'))

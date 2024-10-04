@@ -1,5 +1,6 @@
 gradio
 openai
-qianfan
+qianfan==0.3.17
 promptflow
 promptflow-tools
+tokencost
