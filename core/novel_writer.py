@@ -23,11 +23,11 @@ class NovelWriter():
         self.model = model
         self.sub_model = sub_model
 
-    # update_plot(plot和text之间映射关系的建立)是独立于update_text的。
-    # 也就是说，update_plot不依赖于记录每次text的更改，自己会维护一个记录。
+    # update_map(plot和text之间映射关系的建立)是独立于update_text的。
+    # 也就是说，update_map不依赖于记录每次text的更改，自己会维护一个记录。
     # 这样避免了update_text时引入更多的操作，造成更多开销。
     # 也便于实现lazy_update, 在查询某段text对应的plot时才更新plot和text映射。
-    def update_plot(self):
+    def update_map(self):
         plot = self.plot
         text = self.get_output()
 
@@ -40,11 +40,11 @@ class NovelWriter():
             if concat_plot == plot and concat_text == text:
                 pass
             elif concat_plot != plot and concat_text != text:
-                self._update_plot(0, len(plot_chunks), new_plot_chunks=split_text_into_paragraphs(plot), new_text_chunks=split_text_into_paragraphs(text))
+                yield from self._update_map(0, len(plot_chunks), new_plot_chunks=split_text_into_paragraphs(plot), new_text_chunks=split_text_into_paragraphs(text))
             elif concat_plot != plot:
                 new_plot_chunks = split_text_into_paragraphs(plot)
                 l, r = detect_max_edit_span(plot_chunks, new_plot_chunks)
-                self._update_plot(l, len(plot_chunks)+r, new_plot_chunks=new_plot_chunks[l: len(new_plot_chunks)+r])
+                yield from self._update_map(l, len(plot_chunks)+r, new_plot_chunks=new_plot_chunks[l: len(new_plot_chunks)+r])
             else:
                 new_text_chunks = split_text_into_paragraphs(text)
                 l, r = detect_max_edit_span(list(chain.from_iterable(text_chunks)), new_text_chunks)
@@ -52,13 +52,13 @@ class NovelWriter():
                 plot_l, plot_r = bisect.bisect_right(cumsum, l) - 1, min(bisect.bisect_right(cumsum, cumsum[-1] + r), len(plot_chunks))
                 text_l, text_r = cumsum[plot_l], cumsum[plot_r]
 
-                self._update_plot(plot_l, plot_r, new_text_chunks=new_text_chunks[text_l: len(new_text_chunks) - (cumsum[-1] - text_r)])
+                yield from self._update_map(plot_l, plot_r, new_text_chunks=new_text_chunks[text_l: len(new_text_chunks) - (cumsum[-1] - text_r)])
         else:
             plot_chunks, text_chunks = split_text_into_paragraphs(plot), split_text_into_paragraphs(text)
             self.plot_text_pairs = [[] for _ in range(len(plot_chunks))]
-            self._update_plot(0, len(plot_chunks), new_plot_chunks=plot_chunks, new_text_chunks=text_chunks)
+            yield from self._update_map(0, len(plot_chunks), new_plot_chunks=plot_chunks, new_text_chunks=text_chunks)
 
-    def _update_plot(self, l, r, new_plot_chunks=None, new_text_chunks=None):
+    def _update_map(self, l, r, new_plot_chunks=None, new_text_chunks=None):
         if new_plot_chunks is None:
             new_plot_chunks = [self.plot_text_pairs[i][0] for i in range(l, r)]
         
@@ -76,7 +76,7 @@ class NovelWriter():
                     text_chunks=new_text_chunks
                     )
                 while True:
-                    next(gen)
+                    yield next(gen)
             except StopIteration as e:
                 output = e.value
             
@@ -93,7 +93,7 @@ class NovelWriter():
         return self.plot
     
     def get_plot_and_text_containing_text(self, selected_text, context_ratio=0):
-        self.update_plot()
+        # TODO: 这里需要确保map是最新的
         text_chunks = [e[1] for e in self.plot_text_pairs]
         text = self.get_output()
         match = re.search(selected_text, text)  
@@ -118,7 +118,6 @@ class NovelWriter():
     
     def set_output(self, chapter_text):
         self.text = chapter_text
-        self.update_plot()
 
     def init_text(self):
         outputs = yield from init_text.main(
@@ -131,6 +130,8 @@ class NovelWriter():
 
     def generate_rewrite_suggestion(self, selected_span):
         selected_text = self.get_output()[selected_span[0]:selected_span[1]]
+
+        yield from self.update_map()
 
         context_plot_chunk, context_text_chunk = self.get_plot_and_text_containing_text(selected_text, context_ratio=1)
 
@@ -145,6 +146,8 @@ class NovelWriter():
 
     def generate_rewrite_text(self, suggestion, selected_span):
         selected_text = self.get_output()[selected_span[0]:selected_span[1]]
+
+        yield from self.update_map()
 
         selected_plot_chunk, selected_text_chunk = self.get_plot_and_text_containing_text(selected_text)
 

@@ -1,4 +1,5 @@
 import gradio as gr
+import yaml
 
 import time
 import sys
@@ -38,9 +39,10 @@ def new_writer(texta, textb):
         texta=texta, textb=textb,
         current_cost=0,
         total_cost=0,
+        current_operation=None,
         currency_symbol='￥',
         render_count=0,
-        stop=False  # 初始化中止标志
+        stop=False
     )
 
 def new_setting():
@@ -58,30 +60,18 @@ def new_setting():
         render_count=0
     )
 
-test_plot = """
-班会开始了。黄洁问第一题：“歌剧《茶花女》的作者是谁？”
 
-舒轼站起来回答：“法国作家，小仲马。”
+# 读取YAML文件
+with open('tests/examples/text-plot-examples.yaml', 'r', encoding='utf-8') as file:
+    examples_data = yaml.safe_load(file)
 
-王天心里觉得简单，希望第一个组答错。未来人老王说答错了。王天习惯了老王的存在，觉得他不该犯错。
-
-黄洁宣布：“错误！”
-
-全场惊讶，尤其是王天。黄洁解释，是问歌剧《茶花女》，而不是小说，让舒轼准备表演节目。第一组没人再答。
-
-黄洁问其他组有人知道答案吗？
-
-老王说：“意大利歌剧作家，威尔第。” 王天立刻回答。
-
-黄洁确认正确，第二组加一分并在黑板上记录。王天得意，杨羊夸他，他勉强装作平静。
-
-老王懒洋洋地说王天笑得难看，但王天没反驳。舒轼朗诵结束，第二组开始答题。
-"""
+# 准备示例列表
+examples = [[example['plot']] for example in examples_data['examples']]
 
 with gr.Blocks() as demo:
     gr.Markdown("# Long-Novel-GPT 1.5")
 
-    writer_state = gr.State(new_writer('afjwoejfoiwejfoawjei\nlefzc.mb.zxmv.zxmv.' * 4, ''))
+    writer_state = gr.State(new_writer('', ''))
     pair_state = gr.State(new_pair('', ''))
     setting_state = gr.State(new_setting())
 
@@ -92,8 +82,10 @@ with gr.Blocks() as demo:
             return writer
 
         with gr.Row():
-            textbox_a = gr.Textbox(value=writer['texta'], label="提纲", lines=10, interactive=True, show_copy_button=True)
-            textbox_b = gr.Textbox(value=writer['textb'], label="正文", lines=10, interactive=True, show_copy_button=True)
+            textbox_a = gr.Textbox(value=writer['texta'], placeholder="可以从底部示例中选择提纲或自行输入。", label="提纲", lines=10, interactive=True, show_copy_button=True)
+            textbox_b = gr.Textbox(value=writer['textb'], 
+                                   placeholder="点击创作全部正文来生成，点击重写来对选中段落进行修改...",
+                                   label="正文", lines=10, interactive=True, show_copy_button=True)
 
             def on_select_inputs(evt: gr.SelectData, pair): 
                 if pair['a_source_index'] is not None and tuple(pair['a_source_index']) == tuple(evt.index):
@@ -105,20 +97,10 @@ with gr.Blocks() as demo:
                     pair['a_source_index'] = tuple(evt.index)
                 return pair
             
-            def on_focus_inputs(): 
-                #gr.Info("You focus!")
-                pass
-
-            def on_blur_inputs(): 
-                # gr.Info("You blur!")
-                pass
 
             textbox_b.select(on_select_inputs, pair_state, pair_state)
-            # textbox_b.blur(on_blur_inputs)
-            # textbox_b.focus(on_focus_inputs, None, None)
         
-        gr.Markdown(f"当前操作花费：{writer['current_cost']:.4f}{writer['currency_symbol']}")
-
+        
         with gr.Row():
             write_all_button = gr.Button("创作全部正文", scale=3, min_width=1, variant='primary' if not writer['textb'] else 'secondary')
 
@@ -128,18 +110,26 @@ with gr.Blocks() as demo:
             writer['texta'] = textbox_a
             writer['stop'] = False  # 重置中止标志
 
+            if not textbox_a:
+                gr.Info('请先输入提纲！')
+                return
+
             for chunk in call_write_all(writer, setting):
                 yield chunk
                 if writer.get('stop'):
                     break  # 检测到中止信号，终止生成
         
-        write_all_button.click(lambda: new_pair('', ''), None, [pair_state]).then(
+        write_all_button.click(
                 on_write_all,
+                queue=True,
                 inputs=[textbox_a, setting_state],
-                outputs=[textbox_b]
+                outputs=[textbox_b],
+                concurrency_limit=1
             ).success(
                 on_render, None, [writer_state]
             )
+        
+        #lambda: new_pair('', ''), None, [pair_state]).then(
 
         # “中止”按钮的处理函数
         def on_stop():
@@ -155,7 +145,7 @@ with gr.Blocks() as demo:
         def on_render():
             pair['render_count'] += 1
             return pair
-                            
+
         with gr.Row():
             #paira = gr.Textbox(pair['a'], key=f"paira-{pairi}", label=None, show_label=False, container=False, interactive=True, lines=2)
             paira = gr.Textbox(pair['a'], label=None, show_label=False, container=False, interactive=False, lines=2, scale=10,
@@ -252,20 +242,6 @@ with gr.Blocks() as demo:
                                 fn=on_render, inputs=None, outputs=[pair_state]
                             )
     
-
-    example_textbox = gr.Textbox(visible=False)
-
-    def on_example(x):
-        writer = new_writer(x, '')
-        return writer
-
-    example_textbox.change(on_example, inputs=[example_textbox], outputs=[writer_state])
-
-    gr.Examples(
-        examples=[['test1',], ['test3',], [test_plot, ]],
-        inputs=[example_textbox],
-    )
-
     @gr.render(inputs=setting_state)
     def render_setting(setting):
         def on_render():
@@ -308,6 +284,21 @@ with gr.Blocks() as demo:
                 inputs=[baidu_access_key, baidu_secret_key],
                 outputs=[baidu_report, setting_state]
             ).then(on_render, None, setting_state)
+
+
+    example_textbox = gr.Textbox(visible=False)
+
+    def on_example(x):
+        writer = new_writer(x, '')
+        return writer
+
+    example_textbox.change(on_example, inputs=[example_textbox], outputs=[writer_state])
+
+    gr.Examples(
+        label='示例',
+        examples=examples,
+        inputs=[example_textbox],
+    )
 
 demo.queue()
 demo.launch(server_name="0.0.0.0", server_port=7860)

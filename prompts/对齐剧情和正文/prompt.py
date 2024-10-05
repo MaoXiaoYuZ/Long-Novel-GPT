@@ -55,7 +55,8 @@ def main(model, plot_chunks, text_chunks):
     prompt = template.render(plot_chunks=plot_chunks, 
                              text_chunks=text_chunks)
     
-    response_msgs = yield from chat([], prompt, model, parse_chat=True, response_json=True)
+    for response_msgs in chat([], prompt, model, parse_chat=True, response_json=True):
+        yield {'plot2text': {}, 'response_msgs': response_msgs}
 
     plot2text = parser(response_msgs, plot_chunks, text_chunks)
 
