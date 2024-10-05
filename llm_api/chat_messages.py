@@ -17,12 +17,12 @@ def count_characters(text):
 
 
 model_config = {
-    "ERNIE-Bot":{
-        "Pricing": (0.012, 0.012),
+    "ERNIE-3.5-8K":{
+        "Pricing": (0.0008, 0.002),
         "currency_symbol": '￥',
     },
-    "ERNIE-Bot-4":{
-        "Pricing": (0.12, 0.12),
+    "ERNIE-4.0-8K":{
+        "Pricing": (0.03, 0.09),
         "currency_symbol": '￥',
     },
 }

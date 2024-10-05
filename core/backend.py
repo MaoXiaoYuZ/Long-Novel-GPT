@@ -16,10 +16,10 @@ def dump_novel_writer(writer, novel_writer, response_messages=None):
     writer['textb'] = novel_writer.text
     writer['plot_text_pairs'] = novel_writer.plot_text_pairs
         
-    # if response_messages is not None:
-    #     writer['current_cost'] = response_messages.cost
-    #     writer['currency_symbol'] = response_messages.currency_symbol
-    #     writer['total_cost'] += writer['current_cost']
+    if response_messages is not None:
+        writer['current_cost'] = response_messages.cost
+        writer['currency_symbol'] = response_messages.currency_symbol
+        writer['total_cost'] += writer['current_cost']
 
 
 def call_write_all(writer, setting):

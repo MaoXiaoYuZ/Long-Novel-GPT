@@ -48,14 +48,16 @@ def new_writer(texta, textb):
 def new_setting():
     return dict(
         model=ModelConfig(
-            model='ERNIE-Bot-4',
+            model='ERNIE-4.0-8K',
             ak='wHd0XkepKsUepy3pPQZbx292',
-            sk='p6q43UH5R8M5DyrGoUK7nyWZy4GjOdfp'
+            sk='p6q43UH5R8M5DyrGoUK7nyWZy4GjOdfp',
+            max_tokens=4000
         ),
         sub_model=ModelConfig(
-            model='ERNIE-Bot',
+            model='ERNIE-3.5-8K',
             ak='wHd0XkepKsUepy3pPQZbx292',
-            sk='p6q43UH5R8M5DyrGoUK7nyWZy4GjOdfp'
+            sk='p6q43UH5R8M5DyrGoUK7nyWZy4GjOdfp',
+            max_tokens=4000
         ),
         render_count=0
     )
@@ -75,68 +77,54 @@ with gr.Blocks() as demo:
     pair_state = gr.State(new_pair('', ''))
     setting_state = gr.State(new_setting())
 
-    @gr.render(inputs=writer_state)
-    def render_writer(writer):
-        def on_render():
-            writer['render_count'] += 1
-            return writer
+    with gr.Row():
+        textbox_a = gr.Textbox(placeholder="可以从底部示例中选择提纲或自行输入。", label="提纲", lines=10, interactive=True, show_copy_button=True)
+        textbox_b = gr.Textbox(placeholder="点击创作全部正文来生成，点击重写来对选中段落进行修改...",
+                                label="正文", lines=10, interactive=True, show_copy_button=True)
 
-        with gr.Row():
-            textbox_a = gr.Textbox(value=writer['texta'], placeholder="可以从底部示例中选择提纲或自行输入。", label="提纲", lines=10, interactive=True, show_copy_button=True)
-            textbox_b = gr.Textbox(value=writer['textb'], 
-                                   placeholder="点击创作全部正文来生成，点击重写来对选中段落进行修改...",
-                                   label="正文", lines=10, interactive=True, show_copy_button=True)
-
-            def on_select_inputs(evt: gr.SelectData, pair): 
-                if pair['a_source_index'] is not None and tuple(pair['a_source_index']) == tuple(evt.index):
-                    raise Exception('重复选择相同的文本段')  # bug:在选中后点击重写按钮会重新触发select事件，故这里进行判定
-                else:
-                    gr.Info(f"You selected {evt.value} at {evt.index} from {evt.target}")
-                    print(tuple(evt.index))
-                    pair = new_pair(evt.value, '')
-                    pair['a_source_index'] = tuple(evt.index)
-                return pair
-            
-
-            textbox_b.select(on_select_inputs, pair_state, pair_state)
+        def on_select_inputs(evt: gr.SelectData, pair): 
+            if pair['a_source_index'] is not None and tuple(pair['a_source_index']) == tuple(evt.index):
+                raise Exception('重复选择相同的文本段')  # bug:在选中后点击重写按钮会重新触发select事件，故这里进行判定
+            else:
+                gr.Info(f"You selected {evt.value} at {evt.index} from {evt.target}")
+                print(tuple(evt.index))
+                pair = new_pair(evt.value, '')
+                pair['a_source_index'] = tuple(evt.index)
+            return pair
         
-        
-        with gr.Row():
-            write_all_button = gr.Button("创作全部正文", scale=3, min_width=1, variant='primary' if not writer['textb'] else 'secondary')
 
-            stop_button = gr.Button("中止", scale=1, min_width=1, variant='secondary')  # 新按钮
+        textbox_b.select(on_select_inputs, pair_state, pair_state)
+    
+    
+    with gr.Row():
+        write_all_button = gr.Button("创作全部正文", scale=3, min_width=1, variant='primary')
 
-        def on_write_all(textbox_a, setting):
-            writer['texta'] = textbox_a
-            writer['stop'] = False  # 重置中止标志
+        stop_button = gr.Button("中止", scale=1, min_width=1, variant='secondary')  # 新按钮
 
-            if not textbox_a:
-                gr.Info('请先输入提纲！')
-                return
+    def on_write_all(textbox_a, textbox_b, writer, setting):
+        writer['texta'] = textbox_a
+        writer['textb'] = textbox_b
 
+        if not textbox_a:
+            gr.Info('请先输入提纲！')
+            return
+        try:
             for chunk in call_write_all(writer, setting):
-                yield chunk
-                if writer.get('stop'):
-                    break  # 检测到中止信号，终止生成
-        
-        write_all_button.click(
-                on_write_all,
-                queue=True,
-                inputs=[textbox_a, setting_state],
-                outputs=[textbox_b],
-                concurrency_limit=1
-            ).success(
-                on_render, None, [writer_state]
-            )
-        
-        #lambda: new_pair('', ''), None, [pair_state]).then(
+                yield chunk, gr.update()
+        except Exception as e:
+            gr.Info(str(e))
 
-        # “中止”按钮的处理函数
-        def on_stop():
-            writer['stop'] = True
-            return writer
+        yield writer['textb'], writer
+    
+    click_handle = write_all_button.click(
+            on_write_all,
+            queue=True,
+            inputs=[textbox_a, textbox_b, writer_state, setting_state],
+            outputs=[textbox_b, writer_state],
+            concurrency_limit=1
+        )
 
-        stop_button.click(on_stop)
+    stop_button.click(fn=None, inputs=None, outputs=None, cancels=[click_handle, ])
     
 
     @gr.render(inputs=pair_state)
@@ -156,11 +144,14 @@ with gr.Blocks() as demo:
             pairb = gr.Textbox(pair['b'], label=None, show_label=False, container=False, interactive=True, lines=2, scale=10)
             accept_button = gr.Button("接受", scale=1, min_width=1, variant= 'primary' if pair['a'] and pair['b'] else 'secondary')
 
-            def on_config(paira, pairb):
+            def on_config(textbox_a, textbox_b, paira, pairb, writer, setting):
                 print('on_config start', pair['sub_win_open'], 'render_count', pair['render_count'])
                 if not paira:
                     raise gr.Error('先从正文中选择需要重写的段落！')
                 
+                writer['texta'] = textbox_a
+                writer['textb'] = textbox_b
+
                 pair['b'] = ''
                 pair.update({k: v for k, v in new_pair(paira, pairb).items() if k in ['prompt_win', 'suggestion_win', 'text_win']})
                 pair['render_count'] += 1
@@ -168,24 +159,26 @@ with gr.Blocks() as demo:
                 print('on_config return', pair['sub_win_open'], 'render_count', pair['render_count'])
                 return pair
             
-            rewrite_button.click(fn=on_config, inputs=[paira, pairb], outputs=[pair_state])
+            rewrite_button.click(fn=on_config, inputs=[textbox_a, textbox_b, paira, pairb, writer_state, setting_state], outputs=[pair_state])
 
-            def on_accept(writer, pairb, setting):
+            def on_accept(textbox_a, textbox_b, pairb, writer, setting):
                 if pair['a_source_index'] is None:
                     raise gr.Error('未选择需要重写的文本段')
                 if pairb == '':
                     raise gr.Error('未生成文本')
                 
-                if writer['textb'][pair['a_source_index'][0]:pair['a_source_index'][1]] != pair['a']:
+                if textbox_b[pair['a_source_index'][0]:pair['a_source_index'][1]] != pair['a']:
                     raise gr.Error('需要重写的正文被中途修改，请手动修改。')
-                    
+                
+                writer['textb'] = textbox_b
+                writer['texta'] = textbox_a
+
                 pair['b'] = pairb
                 call_accept(writer, pair, setting)
                 return writer
 
-            accept_button.click(fn=on_accept, inputs=[writer_state, pairb, setting_state], outputs=[writer_state]).success(
-                lambda: new_pair('', ''), None, pair_state
-            )
+            accept_button.click(fn=on_accept, inputs=[textbox_a, textbox_b, pairb, writer_state, setting_state], outputs=[writer_state]).success(
+                lambda writer: (writer['textb'], new_pair('', '')), writer_state, [textbox_b, pair_state])
 
         print('on_render', pair['sub_win_open'], 'render_count', pair['render_count'])
         if pair['sub_win_open']:
@@ -216,7 +209,10 @@ with gr.Blocks() as demo:
                             def on_gen_suggestion(writer, setting):
                                 import time
                                 
-                                suggestion = yield from call_rewrite_suggestion(writer, pair, setting)
+                                try:
+                                    suggestion = yield from call_rewrite_suggestion(writer, pair, setting)
+                                except Exception as e:
+                                    raise gr.Error(str(e))
 
                                 pair['text_win']['open'] = True
                                 return suggestion
@@ -233,8 +229,10 @@ with gr.Blocks() as demo:
 
                             def on_gen_text(output_suggestion, writer, setting):
                                 pair['suggestion_win']['output_suggestion'] = output_suggestion
-
-                                text = yield from call_rewrite_text(writer, pair, setting)
+                                try:    
+                                    text = yield from call_rewrite_text(writer, pair, setting)
+                                except Exception as e:
+                                    raise gr.Error(str(e))
 
                                 return text
                             
@@ -272,8 +270,8 @@ with gr.Blocks() as demo:
             baidu_report = gr.Textbox(key='baidu_report', label='测试结果', value='', interactive=False)
             
             def on_test_baidu_api(access_key, secret_key):
-                model_name = 'ERNIE-Bot-4'  
-                sub_model_name = 'ERNIE-Bot'
+                model_name = 'ERNIE-4.0-8K'  
+                sub_model_name = 'ERNIE-3.5-8K'
                 setting['model'] = ModelConfig(model=model_name, ak=access_key, sk=secret_key)
                 setting['sub_model'] = ModelConfig(model=sub_model_name, ak=access_key, sk=secret_key)
                 result = test_wenxin_api(setting['model']['ak'], setting['model']['sk'])
@@ -285,19 +283,10 @@ with gr.Blocks() as demo:
                 outputs=[baidu_report, setting_state]
             ).then(on_render, None, setting_state)
 
-
-    example_textbox = gr.Textbox(visible=False)
-
-    def on_example(x):
-        writer = new_writer(x, '')
-        return writer
-
-    example_textbox.change(on_example, inputs=[example_textbox], outputs=[writer_state])
-
     gr.Examples(
         label='示例',
         examples=examples,
-        inputs=[example_textbox],
+        inputs=[textbox_a],
     )
 
 demo.queue()

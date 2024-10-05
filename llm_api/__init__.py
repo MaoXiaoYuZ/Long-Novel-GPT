@@ -15,6 +15,9 @@ class ModelConfig(dict):
                     raise ValueError(f"Missing required key: {key}")
         else:
             raise ValueError(f"Unsupported model: {self['model']}")
+        
+        if 'max_tokens' not in self:
+            raise ValueError('Missing required key: max_tokens')
 
 
     def get_api_keys(self) -> Dict[str, str]:
@@ -31,6 +34,7 @@ def stream_chat(model_config: ModelConfig, messages: list) -> Generator:
         model=model_config['model'],
         ak=model_config['ak'],
         sk=model_config['sk'],
+        max_tokens=model_config['max_tokens'],
     )
 
     return result

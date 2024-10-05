@@ -1,27 +1,33 @@
 import qianfan
 from .chat_messages import ChatMessages
 
-# https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application
+# ak和sk获取：https://console.bce.baidu.com/qianfan/ais/console/applicationConsole/application
+
+# 价格：https://cloud.baidu.com/doc/WENXINWORKSHOP/s/hlrk4akp7
 
 wenxin_model_config = {
-    "ERNIE-Bot":{
-        "Pricing": (0.012, 0.012),
+    "ERNIE-3.5-8K":{
+        "Pricing": (0.0008, 0.002),
         "currency_symbol": '￥',
     },
-    "ERNIE-Bot-4":{
-        "Pricing": (0.12, 0.12),
+    "ERNIE-4.0-8K":{
+        "Pricing": (0.03, 0.09),
         "currency_symbol": '￥',
     },
 }
 
 
-def stream_chat_with_wenxin(messages, model='ERNIE-Bot', response_json=False, ak=None, sk=None):
+def stream_chat_with_wenxin(messages, model='ERNIE-Bot', response_json=False, ak=None, sk=None, max_tokens=4000):
     if ak is None or sk is None:
         raise Exception('未提供有效的 ak 和 sk！')
 
     client = qianfan.ChatCompletion(ak=ak, sk=sk)
 
     messages = ChatMessages(messages, model=model)
+
+    if messages.count_message_tokens() > max_tokens:
+        raise Exception(f'请求的文本过长，超过最大tokens:{max_tokens}。')
+    
     yield messages
     
     chatstream = client.do(model=model, 
