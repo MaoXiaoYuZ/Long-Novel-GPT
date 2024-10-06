@@ -45,18 +45,20 @@ def new_writer(texta, textb):
         stop=False
     )
 
+ak, sk = '', ''
+
 def new_setting():
     return dict(
         model=ModelConfig(
             model='ERNIE-4.0-8K',
-            ak='wHd0XkepKsUepy3pPQZbx292',
-            sk='p6q43UH5R8M5DyrGoUK7nyWZy4GjOdfp',
+            ak=ak,
+            sk=sk,
             max_tokens=4000
         ),
         sub_model=ModelConfig(
             model='ERNIE-3.5-8K',
-            ak='wHd0XkepKsUepy3pPQZbx292',
-            sk='p6q43UH5R8M5DyrGoUK7nyWZy4GjOdfp',
+            ak=ak,
+            sk=sk,
             max_tokens=4000
         ),
         render_count=0
@@ -70,8 +72,25 @@ with open('tests/examples/text-plot-examples.yaml', 'r', encoding='utf-8') as fi
 # 准备示例列表
 examples = [[example['plot']] for example in examples_data['examples']]
 
+title = """
+<div style="text-align: center; padding: 10px 20px;">
+    <h1 style="margin: 0 0 5px 0;">🖋️ Long-Novel-GPT 1.6</h1>
+    <p style="margin: 0;"><em>让每个人都能轻松创作自己心目中的小说</em></p>
+</div>
+"""
+
+info = \
+"""1. 当前Demo已经配置了API-Key，可以直接使用。
+2. 当前Demo仅展示了 提纲->正文 的部分，后续版本会陆续支持大纲和章节的生成，最终将实现完整的长文本小说生成。
+3. 可以选中**示例**中的任意一个提纲，然后点击**创作全部正文**来生成正文。也可自行输入提纲。
+4. 通过**重写**功能可以对正文中任意选中段落进行修改。在**重写**时可以多次生成建议或文本，也可手动对生成的建议或文本进行修改。
+5. 如果遇到任何无法解决的问题，请在**手动备份重要文本**后尝试**刷新**页面。
+"""
+
 with gr.Blocks() as demo:
-    gr.Markdown("# Long-Novel-GPT 1.5")
+    gr.HTML(title)
+    with gr.Accordion("使用指南"):
+        gr.Markdown(info)
 
     writer_state = gr.State(new_writer('', ''))
     pair_state = gr.State(new_pair('', ''))
@@ -86,7 +105,7 @@ with gr.Blocks() as demo:
             if pair['a_source_index'] is not None and tuple(pair['a_source_index']) == tuple(evt.index):
                 raise Exception('重复选择相同的文本段')  # bug:在选中后点击重写按钮会重新触发select事件，故这里进行判定
             else:
-                gr.Info(f"You selected {evt.value} at {evt.index} from {evt.target}")
+                # gr.Info(f"You selected {evt.value} at {evt.index} from {evt.target}")
                 print(tuple(evt.index))
                 pair = new_pair(evt.value, '')
                 pair['a_source_index'] = tuple(evt.index)
@@ -105,9 +124,16 @@ with gr.Blocks() as demo:
         writer['texta'] = textbox_a
         writer['textb'] = textbox_b
 
+        if not setting['model']['ak'] or not setting['model']['sk']:
+            gr.Info('请先在API设置中配置api-key！')
+            yield writer['textb'], writer
+            return
+        
         if not textbox_a:
             gr.Info('请先输入提纲！')
+            yield writer['textb'], writer
             return
+        
         try:
             for chunk in call_write_all(writer, setting):
                 yield chunk, gr.update()
@@ -121,7 +147,7 @@ with gr.Blocks() as demo:
             queue=True,
             inputs=[textbox_a, textbox_b, writer_state, setting_state],
             outputs=[textbox_b, writer_state],
-            concurrency_limit=1
+            concurrency_limit=10
         )
 
     stop_button.click(fn=None, inputs=None, outputs=None, cancels=[click_handle, ])
@@ -180,7 +206,6 @@ with gr.Blocks() as demo:
             accept_button.click(fn=on_accept, inputs=[textbox_a, textbox_b, pairb, writer_state, setting_state], outputs=[writer_state]).success(
                 lambda writer: (writer['textb'], new_pair('', '')), writer_state, [textbox_b, pair_state])
 
-        print('on_render', pair['sub_win_open'], 'render_count', pair['render_count'])
         if pair['sub_win_open']:
             with gr.Accordion():
                 with gr.Column():
@@ -215,7 +240,7 @@ with gr.Blocks() as demo:
                                     raise gr.Error(str(e))
 
                                 pair['text_win']['open'] = True
-                                return suggestion
+                                yield suggestion
                             
                             suggestion_button.click(fn=on_gen_suggestion, inputs=[writer_state, setting_state], outputs=[output_suggestion]).success(
                                 fn=on_render, inputs=None, outputs=[pair_state]
@@ -234,12 +259,12 @@ with gr.Blocks() as demo:
                                 except Exception as e:
                                     raise gr.Error(str(e))
 
-                                return text
+                                yield text
                             
                             text_button.click(fn=on_gen_text, inputs=[output_suggestion, writer_state, setting_state], outputs=[output_text]).success(
                                 fn=on_render, inputs=None, outputs=[pair_state]
                             )
-    
+
     @gr.render(inputs=setting_state)
     def render_setting(setting):
         def on_render():
@@ -254,7 +279,8 @@ with gr.Blocks() as demo:
                     lines=1,
                     placeholder='Enter your Baidu access key here',
                     interactive=True,
-                    scale=10
+                    scale=10,
+                    type='password'
                 )
                 baidu_secret_key = gr.Textbox(
                     value=setting['model']['sk'],
@@ -262,7 +288,8 @@ with gr.Blocks() as demo:
                     lines=1,
                     placeholder='Enter your Baidu secret key here',
                     interactive=True,
-                    scale=10
+                    scale=10,
+                    type='password'
                 )
 
                 test_baidu_button = gr.Button('测试', scale=1)
@@ -270,10 +297,12 @@ with gr.Blocks() as demo:
             baidu_report = gr.Textbox(key='baidu_report', label='测试结果', value='', interactive=False)
             
             def on_test_baidu_api(access_key, secret_key):
-                model_name = 'ERNIE-4.0-8K'  
-                sub_model_name = 'ERNIE-3.5-8K'
-                setting['model'] = ModelConfig(model=model_name, ak=access_key, sk=secret_key)
-                setting['sub_model'] = ModelConfig(model=sub_model_name, ak=access_key, sk=secret_key)
+                for modelconfig in [setting['model'], setting['sub_model']]:
+                    modelconfig['ak'] = access_key
+                    modelconfig['sk'] = secret_key
+                    
+                setting['model'] = ModelConfig(**setting['model'])
+                setting['sub_model'] = ModelConfig(**setting['sub_model'])
                 result = test_wenxin_api(setting['model']['ak'], setting['model']['sk'])
                 return result, setting
             

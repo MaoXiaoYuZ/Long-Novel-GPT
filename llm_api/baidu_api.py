@@ -57,7 +57,6 @@ def test_wenxin_api(ak, sk):
             messages = list(stream)[-1]
         except Exception as e:
             report += f"(ERROR){model}:{e}\n"
-            raise e
         else:
             report += f"(Success){model}:{messages.response}(Cost:{messages.cost}{messages.currency_symbol})\n"
     return report
