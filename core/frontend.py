@@ -66,7 +66,7 @@ def new_setting():
 
 
 # 读取YAML文件
-with open('tests/examples/text-plot-examples.yaml', 'r', encoding='utf-8') as file:
+with open('prompts/text-plot-examples.yaml', 'r', encoding='utf-8') as file:
     examples_data = yaml.safe_load(file)
 
 # 准备示例列表
