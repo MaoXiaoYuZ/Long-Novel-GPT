@@ -14,10 +14,14 @@ wenxin_model_config = {
         "Pricing": (0.03, 0.09),
         "currency_symbol": '￥',
     },
+    "ERNIE-Novel-8K":{
+        "Pricing": (0.04, 0.12),
+        "currency_symbol": '￥',
+    }
 }
 
 
-def stream_chat_with_wenxin(messages, model='ERNIE-Bot', response_json=False, ak=None, sk=None, max_tokens=4000):
+def stream_chat_with_wenxin(messages, model='ERNIE-Bot', response_json=False, ak=None, sk=None, max_tokens=6000):
     if ak is None or sk is None:
         raise Exception('未提供有效的 ak 和 sk！')
 
@@ -33,7 +37,8 @@ def stream_chat_with_wenxin(messages, model='ERNIE-Bot', response_json=False, ak
     chatstream = client.do(model=model, 
                            system=messages[0]['content'] if messages[0]['role'] == 'system' else None,
                            messages=messages if messages[0]['role'] != 'system' else messages[1:], 
-                           stream=True, 
+                           stream=True,
+                           response_format='json_object' if response_json else 'text'
                            )
     
     messages.append({'role': 'assistant', 'content': ''})

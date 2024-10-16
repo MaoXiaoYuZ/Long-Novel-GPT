@@ -1,7 +1,6 @@
 output
 config.json
 __pycache__
-.vscode/launch.json
 test.py
 .promptflow
 demo/main_chat_messages.json
@@ -10,6 +9,7 @@ prompts/chat_basic
 demo/config.py
 **/default.flow_test.yaml
 **/data.jsonl
-tests
 *.pickle
 .vscode/sftp.json
+tests/*
+todo.md

@@ -25,6 +25,10 @@ model_config = {
         "Pricing": (0.03, 0.09),
         "currency_symbol": '￥',
     },
+    "ERNIE-Novel-8K":{
+        "Pricing": (0.04, 0.12),
+        "currency_symbol": '￥',
+    }
 }
 
 class ChatMessages(list):
@@ -46,10 +50,10 @@ class ChatMessages(list):
         return NotImplemented 
 
     def count_message_tokens(self):
-        from tokencost import count_message_tokens  # 和gradio库冲突
         if self.model in model_config:
             return self.get_estimated_tokens()
         else:
+            from tokencost import count_message_tokens  # 和gradio库冲突
             return count_message_tokens(self, self.model)
     
     def copy(self):
@@ -65,13 +69,13 @@ class ChatMessages(list):
     
     @property
     def cost(self):
-        from tokencost import calculate_all_costs_and_tokens
         if len(self) == 0:
             return 0
         
         if self.model in model_config:
             return model_config[self.model]["Pricing"][0] * self[:-1].count_message_tokens() / 1_000 + model_config[self.model]["Pricing"][1] * self[-1:].count_message_tokens() / 1_000
         else:
+            from tokencost import calculate_all_costs_and_tokens
             details = calculate_all_costs_and_tokens(self[:-1].get_estimated_tokens(), self[-1:], self.model)
             return details['completion_cost'] + details['prompt_cost']
     

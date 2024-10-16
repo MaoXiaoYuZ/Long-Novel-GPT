@@ -23,7 +23,7 @@ class ModelConfig(dict):
     def get_api_keys(self) -> Dict[str, str]:
         return {k: v for k, v in self.items() if k not in ['model']}
 
-def stream_chat(model_config: ModelConfig, messages: list) -> Generator:
+def stream_chat(model_config: ModelConfig, messages: list, response_json=False) -> Generator:
     if isinstance(model_config, dict):
         model_config = ModelConfig(**model_config)
     
@@ -35,6 +35,7 @@ def stream_chat(model_config: ModelConfig, messages: list) -> Generator:
         ak=model_config['ak'],
         sk=model_config['sk'],
         max_tokens=model_config['max_tokens'],
+        response_json=response_json
     )
 
     return result
