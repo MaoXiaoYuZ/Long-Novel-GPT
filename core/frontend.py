@@ -180,7 +180,7 @@ examples = [[example['idea']] for example in examples_data['examples']]
 
 title = """
 <div style="text-align: center; padding: 10px 20px;">
-    <h1 style="margin: 0 0 5px 0;">🖋️ Long-Novel-GPT 1.6</h1>
+    <h1 style="margin: 0 0 5px 0;">🖋️ Long-Novel-GPT 1.7</h1>
     <p style="margin: 0;"><em>让每个人都能轻松创作自己心目中的小说</em></p>
 </div>
 """
