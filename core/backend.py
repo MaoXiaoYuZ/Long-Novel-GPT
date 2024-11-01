@@ -199,7 +199,7 @@ def call_write(writer, setting, is_rewrite=False, suggestion=None):
                 current_text = ""
                 current_cost += output['response_msgs'].cost
                 currency_symbol = output['response_msgs'].currency_symbol
-                cost_info = f"(预计花费：{output['response_msgs'].cost:.4f}{output['response_msgs'].currency_symbol})"
+                cost_info = f"\n(预计花费：{output['response_msgs'].cost:.4f}{output['response_msgs'].currency_symbol})"
                 if 'plot2text' in output:
                     current_text += f"正在建立映射关系..." + cost_info + '\n'
                 else:
@@ -233,7 +233,7 @@ def call_accept(writer, setting):
             apply_chunks = []
             for output, chunk in chunk_list:
                 current_text = ""
-                cost_info = f"(预计花费：{output['response_msgs'].cost:.4f}{output['response_msgs'].currency_symbol})"
+                cost_info = f"\n(预计花费：{output['response_msgs'].cost:.4f}{output['response_msgs'].currency_symbol})"
                 current_text += f"正在建立映射关系..." + cost_info + '\n'
                 apply_chunks.append((asdict(chunk), 'y_chunk', current_text))
 
@@ -242,58 +242,3 @@ def call_accept(writer, setting):
             new_writer = dump_novel_writer(writer, novel_writer, apply_chunks={})
             new_writer['prompt_outputs'] = [ele[0] for ele in chunk_list]
             return new_writer
-
-
-
-# 下方代码在V1.7版本中暂时不可用
-
-def call_rewrite_suggestion(writer, pair, setting):
-    novel_writer = load_novel_writer(writer, setting)
-    generator = novel_writer.generate_rewrite_suggestion(pair['a_source_index'])
-    while True:
-        try:
-            output = next(generator)
-            cost_info = f"(预计花费：{output['response_msgs'].cost:.4f}{output['response_msgs'].currency_symbol})"
-            if 'plot2text' in output:
-                yield f"正在建立剧情和正文的映射关系..." + cost_info
-            else:
-                yield output['suggestion'] + cost_info
-        except StopIteration as e:
-            pair['suggestion_win']['output_suggestion'] = e.value
-            dump_novel_writer(writer, novel_writer, output['response_msgs'])
-            return e.value
-
-
-def call_rewrite_text(writer, pair, setting):
-    novel_writer = load_novel_writer(writer, setting)
-    suggestion = pair['suggestion_win']['output_suggestion']
-    selected_span = pair['a_source_index']
-    generator = novel_writer.generate_rewrite_text(suggestion, selected_span)
-    while True:
-        try:
-            output = next(generator)
-            cost_info = f"(预计花费：{output['response_msgs'].cost:.4f}{output['response_msgs'].currency_symbol})"
-            if 'plot2text' in output:
-                yield f"正在建立剧情和正文的映射关系..." + cost_info
-            else:
-                yield output['text'] + cost_info
-        except StopIteration as e:
-            pair['text_win']['output_text'] = e.value
-            pair['b'] = e.value
-            dump_novel_writer(writer, novel_writer, output['response_msgs'])
-            return e.value
-
-
-def call_accept_rewrite(writer, pair, setting):
-    novel_writer = load_novel_writer(writer, setting)
-    
-    textb = writer['textb']
-    a_source_index = pair['a_source_index']
-    start, end = a_source_index
-    new_text = textb[:start] + pair['b'] + textb[end:]
-
-    novel_writer.set_output(new_text)
-    writer['textb'] = new_text
-    
-    dump_novel_writer(writer, novel_writer)
-    return new_text

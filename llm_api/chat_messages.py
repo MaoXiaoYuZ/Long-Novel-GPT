@@ -1,4 +1,6 @@
 import re
+import json
+import os
 
 def count_characters(text):
     chinese_pattern = re.compile(r'[\u4e00-\u9fff]+')
@@ -16,20 +18,16 @@ def count_characters(text):
     return chinese_count, english_count, other_count
 
 
-model_config = {
-    "ERNIE-3.5-8K":{
-        "Pricing": (0.0008, 0.002),
-        "currency_symbol": '￥',
-    },
-    "ERNIE-4.0-8K":{
-        "Pricing": (0.03, 0.09),
-        "currency_symbol": '￥',
-    },
-    "ERNIE-Novel-8K":{
-        "Pricing": (0.04, 0.12),
-        "currency_symbol": '￥',
-    }
-}
+model_config = {}
+
+
+model_prices = {}
+try:
+    model_prices_path = os.path.join(os.path.dirname(__file__), 'model_prices.json')
+    with open(model_prices_path, 'r') as f:
+        model_prices = json.load(f)
+except Exception as e:
+    print(f"Warning: Failed to load model_prices.json: {e}")
 
 class ChatMessages(list):
     def __init__(self, *args, **kwargs):
@@ -37,6 +35,12 @@ class ChatMessages(list):
         self.model = kwargs['model'] if 'model' in kwargs else None
         
         assert 'currency_symbol' not in kwargs
+
+        if not model_config:
+            from .baidu_api import wenxin_model_config
+            from .doubao_api import doubao_model_config
+            from .openai_api import gpt_model_config
+            model_config.update({**wenxin_model_config, **doubao_model_config, **gpt_model_config})
     
     def __getitem__(self, index):
         result = super().__getitem__(index)
@@ -50,11 +54,7 @@ class ChatMessages(list):
         return NotImplemented 
 
     def count_message_tokens(self):
-        if self.model in model_config:
-            return self.get_estimated_tokens()
-        else:
-            from tokencost import count_message_tokens  # 和gradio库冲突
-            return count_message_tokens(self, self.model)
+        return self.get_estimated_tokens()
     
     def copy(self):
         return ChatMessages(self, model=self.model)
@@ -74,14 +74,16 @@ class ChatMessages(list):
         
         if self.model in model_config:
             return model_config[self.model]["Pricing"][0] * self[:-1].count_message_tokens() / 1_000 + model_config[self.model]["Pricing"][1] * self[-1:].count_message_tokens() / 1_000
-        else:
-            from tokencost import calculate_all_costs_and_tokens
-            details = calculate_all_costs_and_tokens(self[:-1].get_estimated_tokens(), self[-1:], self.model)
-            return details['completion_cost'] + details['prompt_cost']
+        elif self.model in model_prices:
+            return (
+                model_prices[self.model]["input_cost_per_token"] * self[:-1].count_message_tokens() +
+                model_prices[self.model]["output_cost_per_token"] * self[-1:].count_message_tokens()
+            )
+        return 0
     
     @property
     def response(self):
-        return self[-1]['content']
+        return self[-1]['content'] if self[-1]['role'] == 'assistant' else ''
     
     @property
     def currency_symbol(self):
@@ -89,5 +91,10 @@ class ChatMessages(list):
             return model_config[self.model]["currency_symbol"]
         else:
             return '$'
+    
+    @property
+    def cost_info(self):
+        formatted_cost = f"{self.cost:.7f}".rstrip('0').rstrip('.')
+        return f"{formatted_cost}{self.currency_symbol}"
     
 

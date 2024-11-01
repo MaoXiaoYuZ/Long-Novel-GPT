@@ -10,8 +10,37 @@ if root_path not in sys.path:
     sys.path.append(root_path)
 
 from llm_api.chat_messages import ChatMessages
-from llm_api.chatgpt_api import match_first_json_block
 
+def can_parse_json(response):
+    try:
+        json.loads(response)
+        return True
+    except:
+        return False
+
+def match_first_json_block(response):
+    if can_parse_json(response):
+        return response
+    
+    pattern = r"(?<=[\r\n])```json(.*?)```(?=[\r\n])"
+    matches = re.findall(pattern, '\n' + response + '\n', re.DOTALL)
+    if not matches:
+        pattern = r"(?<=[\r\n])```(.*?)```(?=[\r\n])"
+        matches = re.findall(pattern, '\n' + response + '\n', re.DOTALL)
+        
+    if matches:
+        json_block = matches[0]
+        if can_parse_json(json_block):
+            return json_block
+        else:
+            json_block = json_block.replace('\r\n', '')  # 在continue generate情况下，不同部分之间可能有多出的换行符，导致合起来之后json解析失败
+            if can_parse_json(json_block):
+                return json_block
+            else:
+                raise Exception(f"无法解析JSON代码块")
+    else:
+        raise Exception(f"没有匹配到JSON代码块")
+    
 def parse_first_json_block(response_msgs: ChatMessages):
     assert response_msgs[-1]['role'] == 'assistant'
     return json.loads(match_first_json_block(response_msgs[-1]['content']))

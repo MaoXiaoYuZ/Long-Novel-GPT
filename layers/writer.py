@@ -7,9 +7,9 @@ from itertools import chain
 from collections import Counter
 
 from llm_api.chat_messages import ChatMessages
-from llm_api.openai_api import stream_chat_with_gpt, stream_function_calling_with_gpt
+from llm_api.openai_api import stream_chat_with_gpt
 from llm_api.baidu_api import stream_chat_with_wenxin
-from llm_api.chatgpt_api import stream_chat_with_chatgpt, match_first_json_block
+from llm_api.openai_api import stream_chat_with_chatgpt
 
 
 class Writer:

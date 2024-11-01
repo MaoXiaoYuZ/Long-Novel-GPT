@@ -1,19 +1,12 @@
-from collections import defaultdict
-import math
-import re
-
-from layers.writer import ChatMessages
-from layers.layer_utils import split_text_into_chunks, detect_max_edit_span, run_yield_func
-
 import numpy as np
-from itertools import chain 
 import bisect
+from dataclasses import dataclass
 
-
+from config import MAX_THREAD_NUM
 from llm_api import ModelConfig
 from prompts.对齐剧情和正文 import prompt as match_plot_and_text
+from layers.layer_utils import split_text_into_chunks, detect_max_edit_span, run_yield_func
 
-from dataclasses import dataclass
 
 @dataclass
 class Chunk:
@@ -372,8 +365,8 @@ class Writer:
             pairs.append(pair)
             start = pair.x_span[1] if is_x else pair.y_span[1]
 
-        if len(pairs) > 5:
-            pairs = pairs[:5]
+        if len(pairs) > MAX_THREAD_NUM:
+            pairs = pairs[:MAX_THREAD_NUM]
             # TODO: 这里要输出log信息，可以直接用chunk输出也行
             
         # TODO: 限制还是为5，只对前5个chunk进行处理
