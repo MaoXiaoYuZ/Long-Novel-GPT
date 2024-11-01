@@ -4,7 +4,7 @@ def parse_content(response_msgs):
 
 def parse_last_code_block(response_msgs):
     from prompts.prompt_utils import match_code_block
-    content = response_msgs[-1]['content']
+    content = response_msgs.response
     blocks = match_code_block(content)
     if blocks:
         content = blocks[-1]

@@ -2,8 +2,13 @@ MAX_THREAD_NUM = 5 # 生成时采用的最大线程数
 
 RENDER_SETTING_API_TEST_BTN = True # 是否在API测试界面显示测试按钮
 ENABLE_SETTING_SELECT_SUB_MODEL = True # 是否允许选择自行选择辅助模型
+RENDER_SAVE_LOAD_BTN = False # 是否显示保存和加载按钮
+RENDER_STOP_BTN = False # 是否显示暂停按钮（目前暂停按钮有些小问题，默认关闭）
+
+PAUSE_ON_PROMPT_FINISHED = False # 在LLM响应完成时自动暂停，方便查看Prompt 
 
 ENABLE_MONOGODB = False # 是否启用MongoDB，启用后下面三项才有效。本机上启动了MongoDB服务后可以将此项设为True。
+MONOGODB_DB_NAME = 'llm_api'
 ENABLE_MONOGODB_CACHE = True # 是否启用API缓存
 CACHE_REPLAY_SPEED = 2  # 缓存命中后2倍速重放
 CACHE_REPLAY_MAX_DELAY = 5 # 缓存命中后最大延迟时间，按秒计算
@@ -43,6 +48,9 @@ API_SETTINGS = {
     },
     'gpt': {
         'base_url': '',
+        'api_key': '',
+    },
+    'zhipuai': {
         'api_key': '',
     },
     'others': {

@@ -1,0 +1,54 @@
+{
+	"files": [
+		{
+			"path": "core/backend.py",
+			"bookmarks": [
+				{
+					"line": 177,
+					"column": 14,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "core/frontend.py",
+			"bookmarks": [
+				{
+					"line": 121,
+					"column": 8,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "core/writer.py",
+			"bookmarks": [
+				{
+					"line": 407,
+					"column": 8,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "core/outline_writer.py",
+			"bookmarks": [
+				{
+					"line": 24,
+					"column": 18,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "core/writer_utils.py",
+			"bookmarks": [
+				{
+					"line": 9,
+					"column": 19,
+					"label": ""
+				}
+			]
+		}
+	]
+}
