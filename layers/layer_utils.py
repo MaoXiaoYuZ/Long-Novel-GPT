@@ -1,7 +1,7 @@
 import re
 from difflib import Differ
 
-
+# 后续考虑采用现成的库实现，目前逻辑过于繁琐，而且太慢了
 def detect_max_edit_span(a, b):
     diff = Differ().compare(a, b)
 
@@ -13,7 +13,8 @@ def detect_max_edit_span(a, b):
         if tag.startswith(' '):
             if flag_count_l:
                 l += 1
-            r += 1
+            else:
+                r += 1
         else:
             flag_count_l = False
             r = 0

@@ -1,94 +1,57 @@
-from llm_api import ModelConfig
-from prompts.生成重写正文的意见 import prompt as generate_rewrite_suggestion
-from prompts.根据提纲创作正文 import prompt as init_text
-from prompts.根据意见重写正文 import prompt as generate_rewrite_text
-
+from core.writer_utils import KeyPointMsg
 from core.writer import Writer
 
+from prompts.创作正文.prompt import main as prompt_draft
 class DraftWriter(Writer):
-    def __init__(self, xy_pairs, xy_pairs_update_flag=None, model=None, sub_model=None, x_chunk_length=500, y_chunk_length=2000):
+    def __init__(self, xy_pairs, xy_pairs_update_flag=None, model=None, sub_model=None, x_chunk_length=500, y_chunk_length=1000):
         super().__init__(xy_pairs, xy_pairs_update_flag, model, sub_model, x_chunk_length=x_chunk_length, y_chunk_length=y_chunk_length)
 
-    def init_text(self, suggestion, x_span=None):
-        self.xy_pairs = [(e[0], '') for e in self.xy_pairs]
-
-        yield from self.update_map()
-
-        def process_chunk(chunk):
-            return init_text.main(
-                model=self.get_model(),
-                context_x=chunk.x_chunk_context,
-                x=chunk.x_chunk,
-                suggestion=suggestion
-            )
+    def auto_write(self):
+        yield KeyPointMsg(title='一键生成正文', subtitle='新建正文')
+        yield from self.write("新建正文")
         
-        if x_span is None:
-            x_span = (0, self.x_len)
-
-        results = yield from self.batch_map(
-            prompt=process_chunk,
-            x_span=x_span,
-            smooth=True
-        )
-
-        return results
-    
-    def rewrite_text(self, suggestion, x_span=None, offset=0.25):
-        yield from self.update_map()
-
-        def process_chunk(chunk):
-            return generate_rewrite_text.main(
-                model=self.get_model(),
-                context_x=chunk.x_chunk_context,
-                context_y=chunk.y_chunk_context,
-                y=chunk.y_chunk,
-                suggestion=suggestion
-            )
+        yield KeyPointMsg(title='一键生成正文', subtitle='扩写正文')
+        yield from self.write("扩写正文")
         
-        if x_span is None:
-            x_span = (0, self.x_len)
+        yield KeyPointMsg(title='一键生成正文', subtitle='润色正文')
+        yield from self.write("润色正文")
 
-        results = yield from self.batch_map(
-            prompt=process_chunk,
-            x_span=x_span,
-            smooth=True,
-            offset=offset
-        )
+    def write(self, user_prompt):
+        init = self.y_len == 0
 
-        return results
+        yield from self.update_map() 
 
-    def generate_rewrite_suggestion(self, selected_span):
-        selected_text = self.y[selected_span[0]:selected_span[1]]
-
-        yield from self.update_map()
-
-        context_plot_chunk, context_text_chunk = self.get_plot_and_text_containing_text(selected_text, context_ratio=1)
-
-        outputs = yield from generate_rewrite_suggestion.main(
-            model=self.get_model(),
-            chapter=context_plot_chunk,
-            text=context_text_chunk,
-            selected_text=selected_text,
-        )
-
-        return outputs['suggestion']
-
-    def generate_rewrite_text(self, suggestion, selected_span):
-        selected_text = self.y[selected_span[0]:selected_span[1]]
+        if init:
+            yield from self.batch_apply(
+                prompt_main=prompt_draft,
+                user_prompt_text=user_prompt,
+                x_span=(0, self.x_len),
+                chunk_length=self.x_chunk_length // 3,
+                context_length=self.x_chunk_length // 2 // 3,
+            )
+        else:
+            yield from self.batch_apply(
+                prompt_main=prompt_draft,
+                user_prompt_text=user_prompt,
+                y_span=(0, self.y_len),
+                chunk_length=self.y_chunk_length // 3,
+                context_length=self.y_chunk_length // 4 // 3,
+            )
 
         yield from self.update_map()
 
-        selected_plot_chunk, selected_text_chunk = self.get_plot_and_text_containing_text(selected_text)
-
-        outputs = yield from generate_rewrite_text.main(
-            model=self.get_model(),
-            chapter=selected_plot_chunk,
-            text=selected_text_chunk,
-            selected_text=selected_text,
-            suggestion=suggestion,
+        yield from self.batch_apply(
+            prompt_main=prompt_draft,
+            user_prompt_text="格式化正文",
+            y_span=(0, self.y_len),
+            chunk_length=self.y_chunk_length,
+            context_length=self.y_chunk_length // 4,
+            offset=0.25,
+            model=self.get_model(),     # 为了保证格式化正文的质量，使用主模型，后续Prompt优化后，可以改回sub_model
         )
 
-        return outputs['text']
+    def split_into_chapters(self):
+        pass
 
     def get_model(self):
         return self.model

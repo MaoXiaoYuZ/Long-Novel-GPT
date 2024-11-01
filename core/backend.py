@@ -2,18 +2,14 @@ import time
 import importlib
 from core.draft_writer import DraftWriter
 from core.plot_writer import PlotWriter
+from core.outline_writer import OutlineWriter
+from core.writer_utils import KeyPointMsg
 import copy
 import types
 
 from dataclasses import asdict
 
 def load_novel_writer(writer, setting) -> DraftWriter:
-    # Reload the NovelWriter module
-    importlib.reload(importlib.import_module('core.writer'))
-    novel_writer_module = importlib.import_module('core.draft_writer')
-    importlib.reload(novel_writer_module)
-    DraftWriter = novel_writer_module.DraftWriter
-
     current_w_name = writer['current_w']
     current_w = writer[current_w_name]
 
@@ -24,17 +20,13 @@ def load_novel_writer(writer, setting) -> DraftWriter:
                 xy_pairs_update_flag=list(current_w.get('xy_pairs_update_flag', [])),
                 model=setting['model'],
                 sub_model=setting['sub_model'],
-                x_chunk_length=current_w.get('x_chunk_length', 500),
-                y_chunk_length=current_w.get('y_chunk_length', 2000),
             )
         case 'outline_w':
-            novel_writer = PlotWriter(
+            novel_writer = OutlineWriter(
                 xy_pairs=list(current_w.get('xy_pairs', [['', '']])),
                 xy_pairs_update_flag=list(current_w.get('xy_pairs_update_flag', [])),
                 model=setting['model'],
                 sub_model=setting['sub_model'],
-                x_chunk_length=current_w['x_chunk_length'],
-                y_chunk_length=current_w['y_chunk_length'],
             )
         case 'chapters_w':
             novel_writer = PlotWriter(
@@ -42,8 +34,6 @@ def load_novel_writer(writer, setting) -> DraftWriter:
                 xy_pairs_update_flag=list(current_w.get('xy_pairs_update_flag', [])),
                 model=setting['model'],
                 sub_model=setting['sub_model'],
-                x_chunk_length=current_w.get('x_chunk_length', 200),
-                y_chunk_length=current_w.get('y_chunk_length', 2000),
             )
         case _:
             raise ValueError(f"unknown writer: {current_w_name}")
@@ -69,26 +59,6 @@ def dump_novel_writer(writer, novel_writer, apply_chunks={}, cost=0, currency_sy
     current_w['apply_chunks'] = apply_chunks
     
     return new_writer
-
-def init_chapters_w(writer):
-    outline_w = writer['outline_w']
-    chapters_w = writer['chapters_w']
-    outline_y = "".join([e[1] for e in outline_w['xy_pairs']])
-    chapters_w['xy_pairs'] = [(outline_y, '')]
-    chapters_w['xy_pairs_update_flag'] = [True]
-
-    writer["current_w"] = "chapters_w"
-    return writer
-
-def init_draft_w(writer):
-    chapters_w = writer['chapters_w']
-    draft_w = writer['draft_w']
-    chapters_y = "".join([e[1] for e in chapters_w['xy_pairs']])
-    draft_w['xy_pairs'] = [(chapters_y, '')]
-    draft_w['xy_pairs_update_flag'] = [True]
-
-    writer["current_w"] = "draft_w"
-    return writer
     
 def call_write_long_novel(writer, setting):
     writer = copy.deepcopy(writer)
@@ -179,43 +149,58 @@ def call_write_long_novel(writer, setting):
 
     return writer
 
-def call_write(writer, setting, is_rewrite=False, suggestion=None):
+# 这是后端函数，接受前端writer_state的copy做为输入
+# 返回的是修改后的writer_state，注意yield的值一般被用于前端展示执行的过程和进度
+# 只有return值才会被前端考虑用于writer_state的更新
+def call_write(writer, setting, auto_write=False, suggestion=None):
     novel_writer = load_novel_writer(writer, setting)
+
+    # TODO: 临时代码，后续会移除
+    for _ in novel_writer.update_map(): break   # 执行生成器直到第一个yield
+    current_w = writer[writer['current_w']]
+    current_w['xy_pairs'] = list(novel_writer.xy_pairs)
+    current_w['xy_pairs_update_flag'] = list(novel_writer.xy_pairs_update_flag)
     
-    if is_rewrite:
-        assert suggestion is not None, "rewrite需要提供suggestion"
-        generator = novel_writer.rewrite_text(suggestion)
+    if auto_write:
+        generator = novel_writer.auto_write()
     else:
-        generator = novel_writer.init_text(suggestion)    # TODO: 创作正文初稿也支持suggestion
+        generator = novel_writer.write(suggestion) 
+    
+    prompt_outputs = []
+    for kp_msg in generator:
+        if isinstance(kp_msg, KeyPointMsg):
+            # 如果要支持关键节点保存，需要计算一个编辑上的更改，然后在这里yield writer
+            yield kp_msg
+            continue
+        else:
+            chunk_list = kp_msg
 
-    while True:
-        # TODO: yield的返回状态信息需要结构化，暂时依靠只yield messages, update_map无更新时直接return
-        try:
-            chunk_list = next(generator)
-            
-            current_cost = 0
-            apply_chunks = []
-            for output, chunk in chunk_list:
-                current_text = ""
-                current_cost += output['response_msgs'].cost
-                currency_symbol = output['response_msgs'].currency_symbol
-                cost_info = f"\n(预计花费：{output['response_msgs'].cost:.4f}{output['response_msgs'].currency_symbol})"
-                if 'plot2text' in output:
-                    current_text += f"正在建立映射关系..." + cost_info + '\n'
-                else:
-                    current_text += output['text'] + cost_info + '\n'
-                apply_chunks.append((asdict(chunk), 'y_chunk', current_text))
-            
-            yield dump_novel_writer(writer, novel_writer, apply_chunks=apply_chunks, cost=current_cost, currency_symbol=currency_symbol)
+        current_cost = 0
+        apply_chunks = []
+        prompt_outputs.clear()
+        for output, chunk in chunk_list:
+            prompt_outputs.append(output)
+            current_text = ""
+            current_cost += output['response_msgs'].cost
+            currency_symbol = output['response_msgs'].currency_symbol
+            cost_info = f"\n(预计花费：{output['response_msgs'].cost:.4f}{output['response_msgs'].currency_symbol})"
+            if 'plot2text' in output:
+                current_text += f"正在建立映射关系..." + cost_info + '\n'
+            else:
+                current_text += output['text'] + cost_info + '\n'
+            apply_chunks.append((asdict(chunk), 'y_chunk', current_text))
+        
+        new_writer = dump_novel_writer(writer, novel_writer, apply_chunks=apply_chunks, cost=current_cost, currency_symbol=currency_symbol)
+        new_writer['prompt_outputs'] = prompt_outputs
+        yield new_writer
 
-        except StopIteration as e:
-            apply_chunks = []
-            for output, chunk in e.value:
-                apply_chunks.append((asdict(chunk), 'y_chunk', output['text']))
-
-            new_writer = dump_novel_writer(writer, novel_writer, apply_chunks=apply_chunks)
-            new_writer['prompt_outputs'] = [ele[0] for ele in e.value]
-            return new_writer
+    # 这里是计算出一个编辑上的更改，方便前端显示，后续diff功能将不由writer提供，因为这是为了显示的要求
+    apply_chunks = []
+    for chunk, key, value in load_novel_writer(writer, setting).diff_to(novel_writer):
+        apply_chunks.append((asdict(chunk), key, value))
+    writer[writer['current_w']]['apply_chunks'] = apply_chunks
+    writer['prompt_outputs'] = prompt_outputs
+    return writer
 
 def call_accept(writer, setting):
     current_w_name = writer['current_w']
@@ -227,18 +212,25 @@ def call_accept(writer, setting):
 
     generator = novel_writer.update_map()
     chunk_list = []
-    while True:
-        try:
-            chunk_list = next(generator)
-            apply_chunks = []
-            for output, chunk in chunk_list:
-                current_text = ""
-                cost_info = f"\n(预计花费：{output['response_msgs'].cost:.4f}{output['response_msgs'].currency_symbol})"
-                current_text += f"正在建立映射关系..." + cost_info + '\n'
-                apply_chunks.append((asdict(chunk), 'y_chunk', current_text))
+    prompt_outputs = []
+    for kp_msg in generator:
+        if isinstance(kp_msg, KeyPointMsg):
+            continue
+        else:
+            chunk_list = kp_msg
+        apply_chunks = []
+        prompt_outputs.clear()
+        for output, chunk in chunk_list:
+            prompt_outputs.append(output)
+            current_text = ""
+            cost_info = f"\n(预计花费：{output['response_msgs'].cost:.4f}{output['response_msgs'].currency_symbol})"
+            current_text += f"正在建立映射关系..." + cost_info + '\n'
+            apply_chunks.append((asdict(chunk), 'y_chunk', current_text))
 
-            yield dump_novel_writer(writer, novel_writer, apply_chunks=apply_chunks)
-        except StopIteration as e:
-            new_writer = dump_novel_writer(writer, novel_writer, apply_chunks={})
-            new_writer['prompt_outputs'] = [ele[0] for ele in chunk_list]
-            return new_writer
+        new_writer = dump_novel_writer(writer, novel_writer, apply_chunks=apply_chunks)
+        new_writer['prompt_outputs'] = prompt_outputs
+        yield new_writer
+    
+    writer = dump_novel_writer(writer, novel_writer)
+    writer['prompt_outputs'] = prompt_outputs
+    return writer

@@ -1,12 +1,12 @@
 import numpy as np
 import bisect
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 
 from config import MAX_THREAD_NUM
 from llm_api import ModelConfig
 from prompts.对齐剧情和正文 import prompt as match_plot_and_text
 from layers.layer_utils import split_text_into_chunks, detect_max_edit_span, run_yield_func
-
+from core.writer_utils import KeyPointMsg
 
 @dataclass
 class Chunk:
@@ -100,7 +100,9 @@ class Writer:
         finished = [False] * len(pair_indexes)
 
         generators = [self._update_map(i) for i in pair_indexes]
-        
+
+        first_iter_flag = True
+        kp_msg = None
         while True:
             for i, gen in enumerate(generators):
                 if finished[i]:
@@ -114,7 +116,14 @@ class Writer:
             if all(finished):
                 break
 
+            if first_iter_flag:
+                first_iter_flag = False
+                kp_msg = KeyPointMsg(prompt_name='建立映射关系')
+                yield kp_msg
+
             yield [e for e in yield_list if e is not None]
+
+        if kp_msg: yield kp_msg.set_finished()
 
         # Return the final results
         return [results[i] for i in range(len(results)) if yield_list[i] is not None]
@@ -180,6 +189,8 @@ class Writer:
     def get_chunk(self, pair_span=None, x_span=None, y_span=None, context_length=0, smooth=False):
         if sum(x is not None for x in [pair_span, x_span, y_span]) != 1:
             raise ValueError("Exactly one of pair_span, x_span, or y_span must be provided")
+        
+        assert pair_span is None or (pair_span[0] >= 0 and pair_span[1] <= len(self.xy_pairs)), "pair_span is out of bounds"
 
         is_x = x_span is not None
         is_pair = pair_span is not None
@@ -376,7 +387,7 @@ class Writer:
         results = [None] * len(pairs)
         yield_list = [None] * len(pairs)
         finished = [False] * len(pairs)
-        
+    
         while not all(finished):
             for i, gen in enumerate(generators):
                 if finished[i]:
@@ -392,3 +403,67 @@ class Writer:
 
         # Return the final results
         return results
+    
+    # 返回一个更改，对self施加该更改可以变为cur
+    def diff_to(self, cur):
+        pre_pointer = 0, 1
+        cur_pointer = 0, 1
+
+        cum_sum_pre = np.cumsum([0] + [len(pair[0]) for pair in self.xy_pairs])
+        cum_sum_cur = np.cumsum([0] + [len(pair[0]) for pair in cur.xy_pairs])
+
+        apply_chunks = []
+
+        while pre_pointer[1] <= len(self.xy_pairs) and cur_pointer[1] <= len(cur.xy_pairs):
+            if cum_sum_pre[pre_pointer[1]] - cum_sum_pre[pre_pointer[0]] == cum_sum_cur[cur_pointer[1]] - cum_sum_cur[cur_pointer[0]]:
+                chunk = self.get_chunk(pair_span=pre_pointer)
+                apply_chunks.append((chunk, 'y_chunk', "".join(pair[1] for pair in cur.xy_pairs[cur_pointer[0]:cur_pointer[1]])))
+
+                pre_pointer = pre_pointer[1], pre_pointer[1] + 1
+                cur_pointer = cur_pointer[1], cur_pointer[1] + 1
+            elif cum_sum_pre[pre_pointer[1]] - cum_sum_pre[pre_pointer[0]] < cum_sum_cur[cur_pointer[1]] - cum_sum_cur[cur_pointer[0]]:
+                pre_pointer = pre_pointer[0], pre_pointer[1] + 1
+            else:
+                cur_pointer = cur_pointer[0], cur_pointer[1] + 1
+        
+        assert pre_pointer[1] == len(self.xy_pairs) + 1 and cur_pointer[1] == len(cur.xy_pairs) + 1
+
+        return apply_chunks
+    
+    def batch_apply(self, prompt_main, user_prompt_text, input_keys=None, x_span=None, y_span=None, chunk_length=None, context_length=None, smooth=True, offset=0, model=None):
+        chunk2prompt_key = {
+            'x_chunk': 'x',
+            'y_chunk': 'y',
+            'x_chunk_context': 'context_x',
+            'y_chunk_context': 'context_y'
+        }
+        
+        def process_chunk(chunk:Chunk):
+            prompt_kwargs = asdict(chunk)
+            if input_keys is not None:
+                prompt_kwargs = {k: prompt_kwargs[k] for k in input_keys}
+                assert all(prompt_kwargs.values()), "Missing required context keys"
+            prompt_kwargs = {chunk2prompt_key.get(k, k): v for k, v in prompt_kwargs.items()}
+            return prompt_main(
+                model=model or self.get_model(),
+                user_prompt=user_prompt_text,
+                **prompt_kwargs
+            )
+        
+        yield (kp_msg := KeyPointMsg(prompt_name=user_prompt_text))
+    
+        results = yield from self.batch_map(
+            prompt=process_chunk,
+            x_span=x_span,
+            y_span=y_span,
+            chunk_length=chunk_length,
+            context_length=context_length,
+            smooth=smooth,
+            offset=offset
+        )
+
+        yield kp_msg.set_finished()
+
+        for output, chunk in results:
+            self.apply_chunk(chunk, 'y_chunk', output['text'])
+

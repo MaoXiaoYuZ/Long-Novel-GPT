@@ -1,61 +1,56 @@
+from core.writer_utils import KeyPointMsg
 from core.writer import Writer
 
-from prompts.创作剧情初稿 import prompt as init_plot
-from prompts.根据意见重写剧情 import prompt as rewrite_plot
-
+from prompts.创作剧情.prompt import main as prompt_plot
 
 class PlotWriter(Writer):
-    def __init__(self, xy_pairs, xy_pairs_update_flag=None, model=None, sub_model=None, x_chunk_length=100, y_chunk_length=1000):
+    def __init__(self, xy_pairs, xy_pairs_update_flag=None, model=None, sub_model=None, x_chunk_length=200, y_chunk_length=1000):
         super().__init__(xy_pairs, xy_pairs_update_flag, model, sub_model, x_chunk_length=x_chunk_length, y_chunk_length=y_chunk_length)
 
-    def init_text(self, suggestion, x_span=None):
-        self.xy_pairs = [(e[0], '') for e in self.xy_pairs]
+    def auto_write(self):
+        yield KeyPointMsg(title='一键生成剧情', subtitle='新建剧情')
+        yield from self.write("新建剧情")
+        
+        yield KeyPointMsg(title='一键生成剧情', subtitle='扩写剧情')
+        yield from self.write("扩写剧情")
+        
+        yield KeyPointMsg(title='一键生成剧情', subtitle='润色剧情')
+        yield from self.write("润色剧情")
+
+    def write(self, user_prompt):
+        init = self.y_len == 0
+
+        yield from self.update_map() 
+
+        if init:
+            yield from self.batch_apply(
+                prompt_main=prompt_plot,
+                user_prompt_text=user_prompt,
+                x_span=(0, self.x_len),
+                chunk_length=self.x_chunk_length // 3,
+                context_length=self.x_chunk_length // 2 // 3,
+            )
+        else:
+            yield from self.batch_apply(
+                prompt_main=prompt_plot,
+                user_prompt_text=user_prompt,
+                y_span=(0, self.y_len),
+                chunk_length=self.y_chunk_length // 3,
+                context_length=self.y_chunk_length // 4 // 3,
+            )
 
         yield from self.update_map()
 
-        def process_chunk(chunk):
-            return init_plot.main(
-                model=self.get_model(),
-                context_x=chunk.x_chunk_context,
-                x=chunk.x_chunk,
-                suggestion=suggestion
-            )
-        
-        if x_span is None:
-            x_span = (0, self.x_len)
-
-        results = yield from self.batch_map(
-            prompt=process_chunk,
-            x_span=x_span,
-            smooth=True
+        yield from self.batch_apply(
+            prompt_main=prompt_plot,
+            user_prompt_text="格式化剧情",
+            y_span=(0, self.y_len),
+            chunk_length=self.y_chunk_length,
+            context_length=self.y_chunk_length // 4,
+            offset=0.25,
+            model=self.get_sub_model(),
         )
 
-        return results
-    
-    def rewrite_text(self, suggestion, x_span=None, offset=0.25):
-        yield from self.update_map()
-
-        def process_chunk(chunk):
-            return rewrite_plot.main(
-                model=self.get_model(),
-                context_x=chunk.x_chunk_context,
-                context_y=chunk.y_chunk_context,
-                y=chunk.y_chunk,
-                suggestion=suggestion
-            )
-        
-        if x_span is None:
-            x_span = (0, self.x_len)
-
-        results = yield from self.batch_map(
-            prompt=process_chunk,
-            x_span=x_span,
-            smooth=True,
-            offset=offset
-        )
-
-        return results
-    
     def split_into_chapters(self):
         pass
 

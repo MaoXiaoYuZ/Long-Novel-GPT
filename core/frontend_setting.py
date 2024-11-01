@@ -1,14 +1,15 @@
 import gradio as gr
 from enum import Enum, auto
 
-from llm_api import ModelConfig, wenxin_model_config, doubao_model_config, gpt_model_config, test_stream_chat
+from llm_api import ModelConfig, wenxin_model_config, doubao_model_config, gpt_model_config, zhipuai_model_config, test_stream_chat
 from config import API_SETTINGS, RENDER_SETTING_API_TEST_BTN, ENABLE_SETTING_SELECT_SUB_MODEL
 
 
-class Provider(Enum):
+class Provider:
     GPT = "GPT(OpenAI)"
     WENXIN = "文心(百度)"
     DOUBAO = "豆包(字节跳动)"
+    ZHIPUAI = "GLM(智谱)"
     OTHERS = '其他'
 
 def deep_update(d, u):
@@ -50,6 +51,12 @@ def new_setting():
             'default_sub_model': 'gpt-4o-mini',
             'available_models': list(gpt_model_config.keys())
         },
+        zhipuai={
+            'api_key': '',
+            'default_model': 'glm-4-plus',
+            'default_sub_model': 'glm-4-flashx',
+            'available_models': list(zhipuai_model_config.keys())
+        },
         others={
             'api_key': '',
             'base_url': '',
@@ -68,14 +75,14 @@ def render_setting(setting, setting_state):
     with gr.Accordion("API 设置"):
         with gr.Row():
             provider_name = gr.Dropdown(
-                choices=[p.value for p in Provider],
-                value=setting['provider_name'].value,
+                choices=[Provider.GPT, Provider.WENXIN, Provider.DOUBAO, Provider.ZHIPUAI, Provider.OTHERS],
+                value=setting['provider_name'],
                 label="模型提供商",
                 scale=1
             )
 
             def on_select_provider(provider_name):
-                setting['provider_name'] = Provider(provider_name)
+                setting['provider_name'] = provider_name
                 return setting
             
             provider_name.select(fn=on_select_provider, inputs=provider_name, outputs=[setting_state])
@@ -87,6 +94,8 @@ def render_setting(setting, setting_state):
                     provider_config = setting['doubao']
                 case Provider.GPT:
                     provider_config = setting['gpt']
+                case Provider.ZHIPUAI:
+                    provider_config = setting['zhipuai']
                 case Provider.OTHERS:
                     provider_config = setting['others']
 
@@ -172,6 +181,17 @@ def render_setting(setting, setting_state):
                     label='API Base URL',
                     lines=1,
                     placeholder='Enter API base URL here',
+                    interactive=True,
+                    scale=10,
+                    type='password'
+                )
+
+            elif setting['provider_name'] == Provider.ZHIPUAI:
+                zhipuai_api_key = gr.Textbox(
+                    value=provider_config['api_key'],
+                    label='ZhipuAI API Key',
+                    lines=1,
+                    placeholder='Enter your ZhipuAI API key here',
                     interactive=True,
                     scale=10,
                     type='password'
@@ -269,6 +289,32 @@ def render_setting(setting, setting_state):
                 sub_model.change(**submit_event)
                 gpt_api_key.change(**submit_event)
                 base_url.change(**submit_event)
+
+            elif setting['provider_name'] == Provider.ZHIPUAI:
+                def on_submit(main_model, sub_model, zhipuai_api_key):
+                    provider_config['api_key'] = zhipuai_api_key
+                    
+                    setting['model'] = ModelConfig(
+                        model=main_model,
+                        api_key=zhipuai_api_key,
+                        max_tokens=4096
+                    )
+                    setting['sub_model'] = ModelConfig(
+                        model=sub_model,
+                        api_key=zhipuai_api_key,
+                        max_tokens=4096
+                    )
+                
+                submit_event = dict(
+                    fn=on_submit,
+                    inputs=[main_model, sub_model, zhipuai_api_key],
+                )
+
+                on_submit(main_model.value, sub_model.value, zhipuai_api_key.value)
+
+                main_model.change(**submit_event)
+                sub_model.change(**submit_event)
+                zhipuai_api_key.change(**submit_event)
 
             if RENDER_SETTING_API_TEST_BTN:
                 test_btn = gr.Button("测试")

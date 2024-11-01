@@ -1,6 +1,6 @@
 import datetime
 
-from config import API_COST_LIMITS
+from config import API_COST_LIMITS, MONOGODB_DB_NAME
 
 from .chat_messages import ChatMessages
 from .mongodb_init import mongo_client as client
@@ -8,7 +8,7 @@ from .mongodb_init import mongo_client as client
 def record_api_cost(messages: ChatMessages):
     """记录API调用费用"""
 
-    db = client['llm_api']
+    db = client[MONOGODB_DB_NAME]
     collection = db['api_cost']
 
     cost_data = {
@@ -64,7 +64,7 @@ def get_model_cost_stats(start_date: datetime.datetime, end_date: datetime.datet
     ]
     
     # 直接从 api_cost 集合查询数据
-    db = client['llm_api']
+    db = client[MONOGODB_DB_NAME]
     collection = db['api_cost']
 
     stats = list(collection.aggregate(pipeline))

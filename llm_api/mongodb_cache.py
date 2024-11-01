@@ -7,7 +7,7 @@ import json
 import datetime
 import random
 
-from config import ENABLE_MONOGODB, ENABLE_MONOGODB_CACHE, CACHE_REPLAY_SPEED, CACHE_REPLAY_MAX_DELAY
+from config import ENABLE_MONOGODB, MONOGODB_DB_NAME, ENABLE_MONOGODB_CACHE, CACHE_REPLAY_SPEED, CACHE_REPLAY_MAX_DELAY
 
 from .chat_messages import ChatMessages
 from .mongodb_cost import record_api_cost, check_cost_limits
@@ -27,8 +27,11 @@ def create_cache_key(func_name: str, args: tuple, kwargs: dict) -> str:
 
 
 
-def llm_api_cache(db_name: str, collection_name: str):
+def llm_api_cache():
     """MongoDB缓存装饰器"""
+
+    db_name=MONOGODB_DB_NAME
+    collection_name='stream_chat'
     
     def dummy_decorator(func):
         @functools.wraps(func)
@@ -68,13 +71,14 @@ def llm_api_cache(db_name: str, collection_name: str):
                 if cached_data:
                     # 如果有缓存，yield缓存的结果
                     messages = ChatMessages(cached_data['return_value'])
-                    prompt_messages = messages if messages[-1]['role'] == 'user' else messages[:-1]
                     for item in cached_data['yields']:
                         time.sleep(min(item['delay'] / CACHE_REPLAY_SPEED, CACHE_REPLAY_MAX_DELAY))  # 应用加速倍数
                         if item['index'] > 0:
-                            yield prompt_messages + [{'role': 'assistant', 'content': messages.response[:item['index']]}]
+                            yield messages.prompt_messages + [{'role': 'assistant', 'content': messages.response[:item['index']]}]
                         else:
-                            yield prompt_messages
+                            yield messages.prompt_messages
+                    messages.finished = True
+                    yield messages
                     return messages
             
             # 如果没有缓存，执行原始函数并记录结果

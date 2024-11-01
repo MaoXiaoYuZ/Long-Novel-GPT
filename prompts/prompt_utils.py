@@ -101,7 +101,11 @@ def match_chunk_span_in_text(chunk, text):
 def load_yaml(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:  
         return yaml.safe_load(file)  
-    
+
+def load_text(file_path):
+    with open(file_path, 'r', encoding='utf-8') as file:
+        return file.read()
+
 def load_jinja2_template(file_path):
     env = Environment(loader=FileSystemLoader(os.path.dirname(file_path)))
     template = env.get_template(os.path.basename(file_path)) 

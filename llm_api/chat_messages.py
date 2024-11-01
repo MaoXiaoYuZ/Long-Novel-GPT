@@ -1,3 +1,4 @@
+import hashlib
 import re
 import json
 import os
@@ -33,6 +34,7 @@ class ChatMessages(list):
     def __init__(self, *args, **kwargs):
         super().__init__(*args)
         self.model = kwargs['model'] if 'model' in kwargs else None
+        self.finished = False
         
         assert 'currency_symbol' not in kwargs
 
@@ -40,7 +42,8 @@ class ChatMessages(list):
             from .baidu_api import wenxin_model_config
             from .doubao_api import doubao_model_config
             from .openai_api import gpt_model_config
-            model_config.update({**wenxin_model_config, **doubao_model_config, **gpt_model_config})
+            from .zhipuai_api import zhipuai_model_config
+            model_config.update({**wenxin_model_config, **doubao_model_config, **gpt_model_config, **zhipuai_model_config})
     
     def __getitem__(self, index):
         result = super().__getitem__(index)
@@ -67,6 +70,11 @@ class ChatMessages(list):
                 num_tokens += chinese_count + english_count // 5 + other_count
         return num_tokens
     
+    def get_prompt_messages_hash(self):
+        # 转换为JSON字符串并创建哈希
+        cache_string = json.dumps(self.prompt_messages, sort_keys=True)
+        return hashlib.md5(cache_string.encode()).hexdigest()
+    
     @property
     def cost(self):
         if len(self) == 0:
@@ -86,6 +94,10 @@ class ChatMessages(list):
         return self[-1]['content'] if self[-1]['role'] == 'assistant' else ''
     
     @property
+    def prompt_messages(self):
+        return self[:-1] if self.response else self
+    
+    @property
     def currency_symbol(self):
         if self.model in model_config:
             return model_config[self.model]["currency_symbol"]
@@ -95,6 +107,10 @@ class ChatMessages(list):
     @property
     def cost_info(self):
         formatted_cost = f"{self.cost:.7f}".rstrip('0').rstrip('.')
-        return f"{formatted_cost}{self.currency_symbol}"
+        return f"{self.model}: {formatted_cost}{self.currency_symbol}"
     
-
+    def print(self):
+        for message in self:
+            print(f"{message['role']}".center(100, '-') + '\n')
+            print(message['content'])
+            print()

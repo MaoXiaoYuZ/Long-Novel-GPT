@@ -31,13 +31,6 @@ def stream_chat_with_doubao(messages, model='doubao-lite-32k', endpoint_id=None,
         base_url="https://ark.cn-beijing.volces.com/api/v3",
     )
 
-    messages = ChatMessages(messages, model=model)
-
-    if messages.count_message_tokens() > max_tokens:
-        raise Exception(f'请求的文本过长，超过最大tokens:{max_tokens}。')
-    
-    yield messages
-    
     stream = client.chat.completions.create(
         model=endpoint_id,
         messages=messages,

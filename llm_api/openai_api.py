@@ -20,7 +20,7 @@ gpt_model_config = {
         "currency_symbol": '$',
     },
 }
-
+# https://platform.openai.com/docs/guides/reasoning
 
 def stream_chat_with_gpt(messages, model='gpt-3.5-turbo-1106', response_json=False, api_key=None, base_url=None, max_tokens=4_096, n=1):
     if api_key is None:
@@ -30,13 +30,6 @@ def stream_chat_with_gpt(messages, model='gpt-3.5-turbo-1106', response_json=Fal
 
     if model in ['o1-preview', ] and messages[0]['role'] == 'system':
         messages[0:1] = [{'role': 'user', 'content': messages[0]['content']}, {'role': 'assistant', 'content': ''}]
-    
-    messages = ChatMessages(messages, model=model)
-    
-    if messages.count_message_tokens() > max_tokens:
-        raise Exception(f'请求的文本过长，超过最大tokens:{max_tokens}。')
-    
-    yield messages
     
     chatstream = client.chat.completions.create(
         stream=True,
