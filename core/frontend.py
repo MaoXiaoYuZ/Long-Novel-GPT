@@ -1,3 +1,8 @@
+from rich.console import Console
+from rich.traceback import install
+install(show_locals=True)
+console = Console()
+
 import gradio as gr
 import yaml
 
@@ -5,39 +10,16 @@ import time
 import sys
 import os
 
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from core.backend import call_write, call_rewrite_suggestion, call_rewrite_text, call_accept_rewrite, call_accept, call_write_long_novel, init_chapters_w, init_draft_w
-from llm_api.baidu_api import test_wenxin_api
-from llm_api import ModelConfig, wenxin_model_config
+from core.backend import call_write, call_accept, call_write_long_novel, init_chapters_w, init_draft_w
+from core.frontend_setting import new_setting, render_setting
+from llm_api import ModelConfig, wenxin_model_config, doubao_model_config, test_stream_chat
 
 from core.utils import create_comparison_table
 
 import functools
-
-
-# 前端实现
-def new_pair(a, b):
-    return dict(
-        a=a, b=b,
-        a_source_index=None,
-        sub_win_open=False,
-        prompt_win = dict(
-            open=True,
-            prompts=['默认Prompt'],
-            selected_prompt=None,
-            default_prompt='默认Prompt',
-        ),
-        suggestion_win = dict(
-            open=False,
-            output_suggestion='',
-        ),
-        text_win = dict(
-            open=False,
-            output_text='',
-        ),
-        render_count=0
-    )
 
 def init_writer(idea):
     outline_w = dict(
@@ -115,8 +97,7 @@ def cancellable(func):
                 except StopIteration as e:
                     return e.value
                 except Exception as e:
-                    import traceback
-                    traceback.print_exc()
+                    console.print_exception(show_locals=True)
                     raise gr.Error(f'操作过程中发生错误：{e}')
         finally:
             writer['running_flag'] = False
@@ -149,27 +130,6 @@ def writer_y_is_empty(writer, w_name):
     xy_pairs = writer[w_name]['xy_pairs']
     return sum(len(e[1]) for e in xy_pairs) == 0
 
-ak, sk = '', ''
-
-def new_setting():
-    return dict(
-        model=ModelConfig(
-            #model='ERNIE-Novel-8K',
-            model='ERNIE-4.0-8K',
-            #model='ERNIE-3.5-8K',
-            ak=ak,
-            sk=sk,
-            max_tokens=4000
-        ),
-        sub_model=ModelConfig(
-            model='ERNIE-3.5-8K',
-            ak=ak,
-            sk=sk,
-            max_tokens=4000
-        ),
-        render_count=0
-    )
-
 
 # 读取YAML文件
 with open('prompts/idea-examples.yaml', 'r', encoding='utf-8') as file:
@@ -180,18 +140,19 @@ examples = [[example['idea']] for example in examples_data['examples']]
 
 title = """
 <div style="text-align: center; padding: 10px 20px;">
-    <h1 style="margin: 0 0 5px 0;">🖋️ Long-Novel-GPT 1.7</h1>
+    <h1 style="margin: 0 0 5px 0;">🖋️ Long-Novel-GPT 1.8</h1>
     <p style="margin: 0;"><em>让每个人都能轻松创作自己心目中的小说</em></p>
 </div>
 """
 
 info = \
-"""1. 当前Demo已经配置了API-Key，可以直接使用，模型为文心4，最大线程数为5。
+"""1. 当前Demo支持GPT、Claude、文心、豆包等模型，并且已经配置了API-Key，默认模型为GPT4o，最大线程数为5。
 2. 可以选中**示例**中的任意一个提纲，然后点击**创作大纲**来初始化大纲。
 3. 初始化后，不断点击**扩写**按钮，可以不断扩写大纲，直到满意为止。
 4. 创建完大纲后，点击**创作剧情**按钮，可以创作剧情，之后重复以上流程。
-5. 如果遇到任何无法解决的问题，请点击**刷新**按钮。
-6. 如果问题还是无法解决，请刷新浏览器页面，这会导致丢失所有数据，请手动备份重要文本。
+5. 在模型响应**完成后**，在**Prompt预览**中可以查看当前的Prompt和模型的响应。
+6. 如果遇到任何无法解决的问题，请点击**刷新**按钮。
+7. 如果问题还是无法解决，请刷新浏览器页面，这会导致丢失所有数据，请手动备份重要文本。
 """
 
 with gr.Blocks() as demo:
@@ -200,7 +161,6 @@ with gr.Blocks() as demo:
         gr.Markdown(info)
 
     writer_state = gr.State(init_writer(''))
-    pair_state = gr.State(new_pair('', ''))
     setting_state = gr.State(new_setting())
 
     # with gr.Row():
@@ -308,8 +268,13 @@ with gr.Blocks() as demo:
             md = create_comparison_table(xy_pairs, column_names=column_names[:2])
         return gr.Markdown(md, height='600px')
 
-    idea_textbox = gr.Textbox(examples[0][0],
-        placeholder='用一段话描述你要写的小说...', lines=2, scale=1, label=None, show_label=False, container=False)
+    idea_textbox = gr.Textbox(placeholder='用一段话描述你要写的小说，或者从下方示例中选择一个创意...', lines=1, scale=1, label=None, show_label=False, container=False, max_length=20)
+    
+    gr.Examples(
+        label='示例',
+        examples=examples,
+        inputs=[idea_textbox],
+    )
 
     # with gr.Row():    
     #     write_long_novel_button = gr.Button("一键生成全书", scale=3, min_width=1, variant='primary')
@@ -403,11 +368,6 @@ with gr.Blocks() as demo:
     
     @cancellable
     def on_write_long_novel(writer, setting, idea):
-        if not setting['model']['ak'] or not setting['model']['sk']:
-            gr.Info('请先在API设置中配置api-key！')
-            yield gr.update(), writer
-            return
-        
         if not idea.strip():
             raise gr.Error('请先用一段话描述你要写的小说！')
         
@@ -439,8 +399,7 @@ with gr.Blocks() as demo:
                     return
         except Exception as e:
             gr.Info(str(e))
-            import traceback
-            traceback.print_exc()
+            console.print_exception(show_locals=True)
             return
 
     # write_long_novel_button.click(
@@ -455,11 +414,6 @@ with gr.Blocks() as demo:
     def _on_write_all(writer, setting, is_rewrite=False, suggestion=None):
         current_w_name = writer['current_w']
         current_w = writer[current_w_name]
-
-        if not setting['model']['ak'] or not setting['model']['sk']:
-            gr.Info('请先在API设置中配置api-key！')
-            yield gr.update(), writer
-            return
         
         if is_rewrite:
             if not current_w['xy_pairs'] or (len(current_w['xy_pairs']) == 1 and not current_w['xy_pairs'][0][1].strip()):
@@ -554,172 +508,9 @@ with gr.Blocks() as demo:
             
     accept_button.click(fn=on_accept_write, inputs=[writer_state, setting_state], outputs=[text_md, writer_state]).then(**flash_event)
 
-    # V 1.7 版本下, render_pair暂时不可用，后续版本会修复
-    #@gr.render(inputs=pair_state)
-    def render_pair(pair):
-        # 似乎on_render中pair发生改变，render才会正常工作
-        def on_render():
-            pair['render_count'] += 1
-            return pair
-
-        with gr.Row():
-            #paira = gr.Textbox(pair['a'], key=f"paira-{pairi}", label=None, show_label=False, container=False, interactive=True, lines=2)
-            paira = gr.Textbox(pair['a'], label=None, show_label=False, container=False, interactive=False, lines=2, scale=10,
-                               placeholder="从上方文本框中选择需要创作的文本..."
-                               )
-            rewrite_button = gr.Button("重写", scale=1, min_width=1, variant='primary' if pair['a'] and not pair['b'] else 'secondary')
-            #pairb = gr.Textbox(pair['b'], key=f"pairb-{pairi}", label=None, show_label=False, container=False, interactive=True, lines=2)
-            pairb = gr.Textbox(pair['b'], label=None, show_label=False, container=False, interactive=True, lines=2, scale=10)
-            accept_button = gr.Button("接受", scale=1, min_width=1, variant= 'primary' if pair['a'] and pair['b'] else 'secondary')
-
-            def on_config(textbox_a, textbox_b, paira, pairb, writer, setting):
-                print('on_config start', pair['sub_win_open'], 'render_count', pair['render_count'])
-                if not paira:
-                    raise gr.Error('先从正文中选择需要重写的段落！')
-                
-                writer['texta'] = textbox_a
-                writer['textb'] = textbox_b
-
-                pair['b'] = ''
-                pair.update({k: v for k, v in new_pair(paira, pairb).items() if k in ['prompt_win', 'suggestion_win', 'text_win']})
-                pair['render_count'] += 1
-                pair['sub_win_open'] = not pair['sub_win_open']
-                print('on_config return', pair['sub_win_open'], 'render_count', pair['render_count'])
-                return pair
-            
-            rewrite_button.click(fn=on_config, inputs=[textbox_a, textbox_b, paira, pairb, writer_state, setting_state], outputs=[pair_state])
-
-            def on_accept(textbox_a, textbox_b, pairb, writer, setting):
-                if pair['a_source_index'] is None:
-                    raise gr.Error('未选择需要重写的文本段')
-                if pairb == '':
-                    raise gr.Error('未生成文本')
-                
-                if textbox_b[pair['a_source_index'][0]:pair['a_source_index'][1]] != pair['a']:
-                    raise gr.Error('需要重写的正文被中途修改，请手动修改。')
-                
-                writer['textb'] = textbox_b
-                writer['texta'] = textbox_a
-
-                pair['b'] = pairb
-                call_accept_rewrite(writer, pair, setting)
-                return writer
-
-            accept_button.click(fn=on_accept, inputs=[textbox_a, textbox_b, pairb, writer_state, setting_state], outputs=[writer_state]).success(
-                lambda writer: (writer['textb'], new_pair('', '')), writer_state, [textbox_b, pair_state])
-
-        if pair['sub_win_open']:
-            with gr.Accordion():
-                with gr.Column():
-                    prompt_win = pair['prompt_win']
-                    if prompt_win['open']:
-                        with gr.Row():
-                            prompts_button = gr.Button("选择Prompt", scale=1, interactive=True)
-                            prompts_gradio = gr.Radio(choices=prompt_win['prompts'], value=prompt_win['selected_prompt'], label=None, show_label=False, scale=4)
-
-                            def on_select_prompt(selected_prompt):
-                                pair['prompt_win']['selected_prompt'] = selected_prompt
-                                pair['suggestion_win']['open'] = True
-                                return pair
-
-                            prompts_gradio.select(fn=on_select_prompt, inputs=prompts_gradio, outputs=[pair_state])
-                            prompts_button.click(fn=lambda: on_select_prompt(pair['prompt_win']['default_prompt']), inputs=None, outputs=[pair_state])
-                    else:
-                        pair['suggestion_win']['open'] = False
-                    
-                    suggestion_win = pair['suggestion_win']
-                    if suggestion_win['open']:
-                        with gr.Row():
-                            suggestion_button = gr.Button("生成建议", scale=1)
-                            output_suggestion = gr.Textbox(pair['suggestion_win']['output_suggestion'], label=None, show_label=False, container=False, interactive=True, lines=1, scale=4)
-
-                            def on_gen_suggestion(writer, setting):
-                                import time
-                                
-                                try:
-                                    suggestion = yield from call_rewrite_suggestion(writer, pair, setting)
-                                except Exception as e:
-                                    raise gr.Error(str(e))
-
-                                pair['text_win']['open'] = True
-                                yield suggestion
-                            
-                            suggestion_button.click(fn=on_gen_suggestion, inputs=[writer_state, setting_state], outputs=[output_suggestion]).success(
-                                fn=on_render, inputs=None, outputs=[pair_state]
-                            )
-                    
-                    text_win = pair['text_win']
-                    if text_win['open']:
-                        with gr.Row():
-                            text_button = gr.Button("生成文本", scale=1)
-                            output_text = gr.Textbox(pair['text_win']['output_text'], label=None, show_label=False, container=False, interactive=True, lines=1, scale=4)
-
-                            def on_gen_text(output_suggestion, writer, setting):
-                                pair['suggestion_win']['output_suggestion'] = output_suggestion
-                                try:    
-                                    text = yield from call_rewrite_text(writer, pair, setting)
-                                except Exception as e:
-                                    raise gr.Error(str(e))
-
-                                yield text
-                            
-                            text_button.click(fn=on_gen_text, inputs=[output_suggestion, writer_state, setting_state], outputs=[output_text]).success(
-                                fn=on_render, inputs=None, outputs=[pair_state]
-                            )
-
     @gr.render(inputs=setting_state)
-    def render_setting(setting):
-        def on_render():
-            setting['render_count'] += 1
-            return setting
-
-        with gr.Accordion("API 设置"):
-            with gr.Row():
-                baidu_access_key = gr.Textbox(
-                    value=setting['model']['ak'],
-                    label='Baidu Access Key',
-                    lines=1,
-                    placeholder='Enter your Baidu access key here',
-                    interactive=True,
-                    scale=10,
-                    type='password'
-                )
-                baidu_secret_key = gr.Textbox(
-                    value=setting['model']['sk'],
-                    label='Baidu Secret Key',
-                    lines=1,
-                    placeholder='Enter your Baidu secret key here',
-                    interactive=True,
-                    scale=10,
-                    type='password'
-                )
-
-                test_baidu_button = gr.Button('测试', scale=1)
-            
-            baidu_report = gr.Textbox(key='baidu_report', label='测试结果', value='', interactive=False)
-            
-            def on_test_baidu_api(access_key, secret_key):
-                for modelconfig in [setting['model'], setting['sub_model']]:
-                    modelconfig['ak'] = access_key
-                    modelconfig['sk'] = secret_key
-                    
-                setting['model'] = ModelConfig(**setting['model'])
-                setting['sub_model'] = ModelConfig(**setting['sub_model'])
-                result = test_wenxin_api(setting['model']['ak'], setting['model']['sk'])
-                return result, setting
-            
-            test_baidu_button.click(
-                on_test_baidu_api,
-                inputs=[baidu_access_key, baidu_secret_key],
-                outputs=[baidu_report, setting_state]
-            ).then(on_render, None, setting_state)
-
-
-    gr.Examples(
-        label='示例',
-        examples=examples,
-        inputs=[idea_textbox],
-    )
+    def _render_setting(setting):
+        return render_setting(setting, setting_state)
 
 
 demo.queue()

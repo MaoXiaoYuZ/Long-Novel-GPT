@@ -50,21 +50,6 @@ def stream_chat_with_wenxin(messages, model='ERNIE-Bot', response_json=False, ak
     
     return messages
 
-def test_wenxin_api(ak, sk):
-    report = 'User:回答这是一个测试。\n'
-    for model in wenxin_model_config:
-        try:
-            stream = stream_chat_with_wenxin([{'role': 'user', 'content': "回答这是一个测试。"}],
-                                             model=model,
-                                             response_json=False,
-                                             ak=ak,
-                                             sk=sk)
-            messages = list(stream)[-1]
-        except Exception as e:
-            report += f"(ERROR){model}:{e}\n"
-        else:
-            report += f"(Success){model}:{messages.response}(Cost:{messages.cost}{messages.currency_symbol})\n"
-    return report
     
 if __name__ == '__main__':
-    print(test_wenxin_api(ak='your_ak_here', sk='your_sk_here'))
+    pass

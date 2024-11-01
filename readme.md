@@ -31,16 +31,32 @@ Long-Novel-GPT是一个基于GPT等大语言模型的长篇小说生成器。它
 
 <h2 id="更新日志">📅 更新日志</h2>
 
-### 🎉 Long-Novel-GPT 1.7 重大更新
+### 🎉 Long-Novel-GPT 1.8 更新（最新）
+- 在线演示：[Long-Novel-GPT Demo](http://117.72.16.208:7860/)
+- 新增支持多种大语言模型：
+  - OpenAI系列: o1-preivew、o1-mini、gpt4o 等
+  - Claude系列: Claude-3.5-Sonnet 等
+  - 文心一言: ERNIE-4.0、ERNIE-3.5、ERNIE-Novel
+  - 豆包: doubao-lite/pro系列
+  - 支持任何兼容OpenAI接口的自定义模型
+- 优化了生成界面和用户体验
+
+<p align="center">
+  <img src="assets/support_models_preview.gif" alt="支持的模型预览" width="600"/>
+  <br>
+  <em>Demo支持多种大语言模型（<a href="assets/support_models_preview.gif">图中</a>展示的是API设置界面）</em>
+</p>
+
+### 🎉 Long-Novel-GPT 1.7 更新
 
 - 提供了一个在线Demo，支持从一句话创意直接生成全书。
-- 在线演示：[Long-Novel-GPT Demo](http://117.72.16.208:7860/)
+
 
 ### 🔮 后续更新计划
 - 考虑一个更美观更实用的编辑界面（已完成）
+- 支持文心 Novel 模型（已完成）
+- 支持豆包模型（已完成）
 - 通过一个创意直接一键生成完整长篇小说（进行中）
-- 支持文心 Novel 模型（进行中）
-- 支持豆包模型（进行中）
 - 支持生成大纲和章节（进行中）
 
 
@@ -62,6 +78,17 @@ Long-Novel-GPT 1.5及之前版本提供了一个完整的长篇小说生成APP�
 
 无需安装，立即体验我们的在线 Demo：[Long-Novel-GPT Demo](http://117.72.16.208:7860/)
 
+<p align="center">
+  <img src="assets/write_text_preview.gif" alt="写作界面预览" width="600"/>
+  <br>
+  <em>多线程并行创作（<a href="assets/write_text_preview.gif">图中</a>展示的是创作正文的场景）</em>
+</p>
+
+<p align="center">
+  <img src="assets/o1-preview-prompt-preview.png" alt="Claude-3 Prompt预览" width="600"/>
+  <br>
+  <em>支持查看Prompt(<a href="assets/o1-preview-prompt-preview.png">图中</a>是o1-preview模型的回答）</em>
+</p>
 
 ### 本地安装
 
@@ -80,6 +107,8 @@ cd Long-Novel-GPT
 python core/frontend.py
 ```
 
+启动后在浏览器中访问链接即可：[http://localhost:7860/](http://localhost:7860/)
+
 <p align="center">
   <img src="assets/Long-Novel-GPT-1.7-Demo.png" alt="Gradio DEMO有5个Tab页面" width="600"/>
 </p>
@@ -88,10 +117,9 @@ python core/frontend.py
 
 ### 当前Demo能生成百万字小说吗？
 可以，Long-Novel-GPT-1.7通过多线程生成，自动管理上下文，确保了生成剧情的连续。
-在1.7版本中，你需要部署在本地并采用自己的API-Key，并将 [`core/writer.py`](core/writer.py) 的第 375-376 行注释掉，这样会解除线程限制。
+在1.7版本中，你需要部署在本地并采用自己的API-Key，在 [`config.py`](config.py) 中配置生成时采用的最大线程数。
 ```python
-        if len(pairs) > 5:
-            pairs = pairs[:5]
+MAX_THREAD_NUM = 5 # 生成时采用的最大线程数
 ```
 在线Demo是不行的，因为最大线程为5。
 
@@ -113,12 +141,13 @@ python core/frontend.py
 期待后续的版本会提供完整的一键解决方案。
 
 ### 在线Demo使用指南
-1. 在线Demo已经配置了API-Key，可以直接使用，模型为文心4，最大线程数为5。
+1. 当前Demo支持GPT、Claude、文心、豆包等模型，并且已经配置了API-Key，默认模型为GPT4o，最大线程数为5。
 2. 可以选中**示例**中的任意一个提纲，然后点击**创作大纲**来初始化大纲。
 3. 初始化后，不断点击**扩写**按钮，可以不断扩写大纲，直到满意为止。
 4. 创建完大纲后，点击**创作剧情**按钮，可以创作剧情，之后重复以上流程。
-5. 如果遇到任何无法解决的问题，请点击**刷新**按钮。
-6. 如果问题还是无法解决，请刷新浏览器页面，这会导致丢失所有数据，请手动备份重要文本。
+5. 在模型响应**完成后**，在**Prompt预览**中可以查看当前的Prompt和模型的响应。
+6. 如果遇到任何无法解决的问题，请点击**刷新**按钮。
+7. 如果问题还是无法解决，请刷新浏览器页面，这会导致丢失所有数据，请手动备份重要文本。
 
 <h2 id="贡献">🤝 贡献</h2>
 
