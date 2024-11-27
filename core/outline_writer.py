@@ -4,8 +4,8 @@ from core.writer import Writer
 from prompts.创作大纲.prompt import main as prompt_outline
 
 class OutlineWriter(Writer):
-    def __init__(self, xy_pairs, xy_pairs_update_flag=None, model=None, sub_model=None, x_chunk_length=10_000, y_chunk_length=10_000):
-        super().__init__(xy_pairs, xy_pairs_update_flag, model, sub_model, x_chunk_length=x_chunk_length, y_chunk_length=y_chunk_length)
+    def __init__(self, xy_pairs, model=None, sub_model=None, x_chunk_length=10_000, y_chunk_length=10_000):
+        super().__init__(xy_pairs, model, sub_model, x_chunk_length=x_chunk_length, y_chunk_length=y_chunk_length)
 
     def auto_write(self):
         yield KeyPointMsg(title='一键生成大纲', subtitle='新建大纲')
@@ -17,30 +17,21 @@ class OutlineWriter(Writer):
         yield KeyPointMsg(title='一键生成大纲', subtitle='润色大纲')
         yield from self.write("润色大纲", x_span=(0, self.x_len))
 
-    def write(self, user_prompt, x_span=None):
+    def write(self, user_prompt, y_span=None):
         init = self.y_len == 0
 
-        yield from self.update_map() 
-
-        yield from self.batch_apply(
-            prompt_main=prompt_outline,
-            user_prompt_text=user_prompt,
-            x_span=x_span or (0, self.x_len),
-            chunk_length=self.x_chunk_length // 3,
-            context_length=self.x_chunk_length // 2 // 3,
+        chunks = self.get_chunks(
+            x_span=(0, self.x_len),
         )
 
-        yield from self.update_map()
+        if user_prompt == '自动' and init:
+            user_prompt = '新建大纲'
 
-        yield from self.batch_apply(
-            prompt_main=prompt_outline,
-            user_prompt_text="格式化大纲",
-            x_span=x_span or (0, self.x_len),
-            chunk_length=self.x_chunk_length,
-            context_length=self.x_chunk_length // 2,
-            offset=0.25,
-            model=self.get_sub_model(),
-        )
+        if user_prompt == '自动':
+            yield from self.batch_review_write_apply_text(chunks, prompt_outline, "审阅大纲")
+        else:
+            yield from self.batch_write_apply_text(chunks, prompt_outline, user_prompt)
+
 
     def get_model(self):
         return self.model
