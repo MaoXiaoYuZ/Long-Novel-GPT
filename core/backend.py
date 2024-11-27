@@ -4,37 +4,31 @@ from core.draft_writer import DraftWriter
 from core.plot_writer import PlotWriter
 from core.outline_writer import OutlineWriter
 from core.writer_utils import KeyPointMsg
+from core.diff_utils import match_span_by_char
 import copy
 import types
-
-from dataclasses import asdict
 
 def load_novel_writer(writer, setting) -> DraftWriter:
     current_w_name = writer['current_w']
     current_w = writer[current_w_name]
 
+    kwargs = dict(
+        xy_pairs=list(current_w.get('xy_pairs', [['', '']])),
+        model=setting['model'],
+        sub_model=setting['sub_model'],
+    )
+
+    if 'y_chunk_length' in current_w:
+        kwargs['x_chunk_length'] = current_w['y_chunk_length'] // 2
+        kwargs['y_chunk_length'] = current_w['y_chunk_length']
+
     match current_w_name:
         case 'draft_w':
-            novel_writer = DraftWriter(
-                xy_pairs=list(current_w.get('xy_pairs', [['', '']])),
-                xy_pairs_update_flag=list(current_w.get('xy_pairs_update_flag', [])),
-                model=setting['model'],
-                sub_model=setting['sub_model'],
-            )
+            novel_writer = DraftWriter(**kwargs)
         case 'outline_w':
-            novel_writer = OutlineWriter(
-                xy_pairs=list(current_w.get('xy_pairs', [['', '']])),
-                xy_pairs_update_flag=list(current_w.get('xy_pairs_update_flag', [])),
-                model=setting['model'],
-                sub_model=setting['sub_model'],
-            )
+            novel_writer = OutlineWriter(**kwargs)
         case 'chapters_w':
-            novel_writer = PlotWriter(
-                xy_pairs=list(current_w.get('xy_pairs', [['', '']])),
-                xy_pairs_update_flag=list(current_w.get('xy_pairs_update_flag', [])),
-                model=setting['model'],
-                sub_model=setting['sub_model'],
-            )
+            novel_writer = PlotWriter(**kwargs)
         case _:
             raise ValueError(f"unknown writer: {current_w_name}")
             
@@ -50,7 +44,6 @@ def dump_novel_writer(writer, novel_writer, apply_chunks={}, cost=0, currency_sy
     #     assert isinstance(novel_writer, DraftWriter), "draft_w需要传入DraftWriter"
 
     current_w['xy_pairs'] = list(novel_writer.xy_pairs)
-    current_w['xy_pairs_update_flag'] = list(novel_writer.xy_pairs_update_flag)
         
     current_w['current_cost'] = cost
     current_w['currency_symbol'] = currency_symbol
@@ -149,22 +142,34 @@ def call_write_long_novel(writer, setting):
 
     return writer
 
+def match_quote_text(writer, setting, quote_text):
+    novel_writer = load_novel_writer(writer, setting)
+    y_text = novel_writer.y
+    quote_text_span, match_ratio = match_span_by_char(quote_text, y_text)
+    if match_ratio > 0.5:
+        aligned_span, _ = novel_writer.align_span(y_span=quote_text_span)
+        return aligned_span, y_text[aligned_span[0]:aligned_span[1]]
+    else:
+        return None, ''
+
 # 这是后端函数，接受前端writer_state的copy做为输入
 # 返回的是修改后的writer_state，注意yield的值一般被用于前端展示执行的过程和进度
 # 只有return值才会被前端考虑用于writer_state的更新
 def call_write(writer, setting, auto_write=False, suggestion=None):
     novel_writer = load_novel_writer(writer, setting)
 
-    # TODO: 临时代码，后续会移除
-    for _ in novel_writer.update_map(): break   # 执行生成器直到第一个yield
     current_w = writer[writer['current_w']]
     current_w['xy_pairs'] = list(novel_writer.xy_pairs)
-    current_w['xy_pairs_update_flag'] = list(novel_writer.xy_pairs_update_flag)
     
+    quote_span = writer['quote_span']
+
     if auto_write:
+        assert quote_span is None, "auto_write模式下，不能有quote_text"
         generator = novel_writer.auto_write()
     else:
-        generator = novel_writer.write(suggestion) 
+        # TODO: writer.write 应该保证无论什么prompt，都能够同时适应y为空和y有值地情况
+        # 换句话说，就是虽然可以单列出一个“新建正文”，但用扩写正文也能实现同样的效果。
+        generator = novel_writer.write(suggestion, y_span=quote_span) 
     
     prompt_outputs = []
     for kp_msg in generator:
@@ -188,7 +193,7 @@ def call_write(writer, setting, auto_write=False, suggestion=None):
                 current_text += f"正在建立映射关系..." + cost_info + '\n'
             else:
                 current_text += output['text'] + cost_info + '\n'
-            apply_chunks.append((asdict(chunk), 'y_chunk', current_text))
+            apply_chunks.append((chunk, 'y_chunk', current_text))
         
         new_writer = dump_novel_writer(writer, novel_writer, apply_chunks=apply_chunks, cost=current_cost, currency_symbol=currency_symbol)
         new_writer['prompt_outputs'] = prompt_outputs
@@ -197,7 +202,7 @@ def call_write(writer, setting, auto_write=False, suggestion=None):
     # 这里是计算出一个编辑上的更改，方便前端显示，后续diff功能将不由writer提供，因为这是为了显示的要求
     apply_chunks = []
     for chunk, key, value in load_novel_writer(writer, setting).diff_to(novel_writer):
-        apply_chunks.append((asdict(chunk), key, value))
+        apply_chunks.append((chunk, key, value))
     writer[writer['current_w']]['apply_chunks'] = apply_chunks
     writer['prompt_outputs'] = prompt_outputs
     return writer
@@ -210,27 +215,5 @@ def call_accept(writer, setting):
     for chunk, key, text in current_w['apply_chunks']:
         novel_writer.apply_chunk(chunk, key, text)
 
-    generator = novel_writer.update_map()
-    chunk_list = []
-    prompt_outputs = []
-    for kp_msg in generator:
-        if isinstance(kp_msg, KeyPointMsg):
-            continue
-        else:
-            chunk_list = kp_msg
-        apply_chunks = []
-        prompt_outputs.clear()
-        for output, chunk in chunk_list:
-            prompt_outputs.append(output)
-            current_text = ""
-            cost_info = f"\n(预计花费：{output['response_msgs'].cost:.4f}{output['response_msgs'].currency_symbol})"
-            current_text += f"正在建立映射关系..." + cost_info + '\n'
-            apply_chunks.append((asdict(chunk), 'y_chunk', current_text))
-
-        new_writer = dump_novel_writer(writer, novel_writer, apply_chunks=apply_chunks)
-        new_writer['prompt_outputs'] = prompt_outputs
-        yield new_writer
-    
     writer = dump_novel_writer(writer, novel_writer)
-    writer['prompt_outputs'] = prompt_outputs
     return writer

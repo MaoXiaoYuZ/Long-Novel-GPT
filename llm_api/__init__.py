@@ -34,6 +34,8 @@ class ModelConfig(dict):
         
         if 'max_tokens' not in self:
             raise ValueError('Missing required key: max_tokens')
+        else:
+            assert self['max_tokens'] <= 4_096, 'max_tokens最大为4096！'
 
 
     def get_api_keys(self) -> Dict[str, str]:
@@ -47,6 +49,8 @@ def stream_chat(model_config: ModelConfig, messages: list, response_json=False) 
     model_config.validate()
 
     messages = ChatMessages(messages, model=model_config['model'])
+
+    assert model_config['max_tokens'] <= 4096, 'max_tokens最大为4096！'
 
     if messages.count_message_tokens() > model_config['max_tokens']:
         raise Exception(f'请求的文本过长，超过最大tokens:{model_config["max_tokens"]}。')
@@ -85,6 +89,7 @@ def stream_chat(model_config: ModelConfig, messages: list, response_json=False) 
             model=model_config['model'],
             api_key=model_config['api_key'],
             base_url=model_config.get('base_url'),
+            proxies=model_config.get('proxies'),
             max_tokens=model_config['max_tokens'],
             response_json=response_json
         )

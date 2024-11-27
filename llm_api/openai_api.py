@@ -1,3 +1,4 @@
+import httpx
 from openai import OpenAI
 from .chat_messages import ChatMessages
 
@@ -22,11 +23,22 @@ gpt_model_config = {
 }
 # https://platform.openai.com/docs/guides/reasoning
 
-def stream_chat_with_gpt(messages, model='gpt-3.5-turbo-1106', response_json=False, api_key=None, base_url=None, max_tokens=4_096, n=1):
+def stream_chat_with_gpt(messages, model='gpt-3.5-turbo-1106', response_json=False, api_key=None, base_url=None, max_tokens=4_096, n=1, proxies=None):
     if api_key is None:
         raise Exception('未提供有效的 api_key！')
     
-    client = OpenAI(api_key=api_key, base_url=base_url)
+    client_params = {
+        "api_key": api_key,
+    }
+
+    if base_url:
+        client_params['base_url'] = base_url
+
+    if proxies:
+        httpx_client = httpx.Client(proxies=proxies)
+        client_params["http_client"] = httpx_client
+    
+    client = OpenAI(**client_params)
 
     if model in ['o1-preview', ] and messages[0]['role'] == 'system':
         messages[0:1] = [{'role': 'user', 'content': messages[0]['content']}, {'role': 'assistant', 'content': ''}]

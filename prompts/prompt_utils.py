@@ -48,8 +48,8 @@ def parse_first_json_block(response_msgs: ChatMessages):
 def match_code_block(response):
     response = re.sub(r'\r\n', r'\n', response)
     response = re.sub(r'\r', r'\n', response)
-    pattern = r"(?<=[\n])```(?:\S*\s)(.*?)```(?=[\n])"
-    matches = re.findall(pattern, '\n' + response + '\n```\n', re.DOTALL)
+    pattern = r"```(?:\S*\s)(.*?)```"
+    matches = re.findall(pattern, response + '```', re.DOTALL)
     return matches
 
 def json_dumps(json_object):

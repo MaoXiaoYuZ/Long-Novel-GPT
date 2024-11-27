@@ -67,7 +67,7 @@ def main(model, dirname, user_prompt_text, **kwargs):
         user_prompt_text = load_prompt(dirname, user_prompt_text)
         load_from_file_flag = True
     except:
-        if not user_prompt_text.strip().startswith("user:"):
+        if not re.search(r'^user:\n', user_prompt_text, re.MULTILINE):
             user_prompt_text = f"user:\n{user_prompt_text}"
         
     user_prompt = parse_prompt(user_prompt_text, **kwargs)

@@ -13,3 +13,5 @@ demo/config.py
 .vscode/sftp.json
 tests/*
 todo.md
+states.json
+"states copy.json"

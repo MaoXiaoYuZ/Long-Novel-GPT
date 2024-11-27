@@ -5,9 +5,11 @@ import os
 import time
 import gradio as gr
 
+from core.writer import Chunk
+
 title = """
 <div style="text-align: center; padding: 10px 20px;">
-    <h1 style="margin: 0 0 5px 0;">🖋️ Long-Novel-GPT 1.9</h1>
+    <h1 style="margin: 0 0 5px 0;">🖋️ Long-Novel-GPT 1.10</h1>
     <p style="margin: 0;"><em>AI一键生成长篇小说</em></p>
 </div>
 """
@@ -29,7 +31,6 @@ def init_writer(idea, check_empty=True):
         total_cost=0,
         currency_symbol='￥',
         xy_pairs=[(idea, '')],
-        xy_pairs_update_flag=[False],   # outline 不进行映射
         apply_chunks={},
     )
     chapters_w = dict(
@@ -58,6 +59,12 @@ def init_writer(idea, check_empty=True):
         draft_w = 'prompts/创作正文',
     )
 
+    chunk_length = dict(
+        outline_w = [4_000, ],
+        chapters_w = [500, 200, 1000, 2000],
+        draft_w = [1000, 500, 2000, 3000],
+    )
+
     writer = dict(
         current_w='outline_w',
         outline_w=outline_w,
@@ -70,7 +77,9 @@ def init_writer(idea, check_empty=True):
         prompt_outputs=[],  # 这一行未注释时，将在gradio界面中显示prompt_outputs
         suggestions=suggestions,
         suggestions_dirname=suggestions_dirname,
-        pause_on_prompt_finished_flag = False
+        pause_on_prompt_finished_flag = False,
+        quote_span = None,
+        chunk_length = chunk_length,
     )
 
     current_w_name = writer['current_w']
@@ -84,7 +93,6 @@ def init_chapters_w(writer, check_empty=True):
     chapters_w = writer['chapters_w']
     outline_y = "".join([e[1] for e in outline_w['xy_pairs']])
     chapters_w['xy_pairs'] = [(outline_y, '')]
-    chapters_w['xy_pairs_update_flag'] = [True]
 
     writer["current_w"] = "chapters_w"
     
@@ -99,7 +107,6 @@ def init_draft_w(writer, check_empty=True):
     draft_w = writer['draft_w']
     chapters_y = "".join([e[1] for e in chapters_w['xy_pairs']])
     draft_w['xy_pairs'] = [(chapters_y, '')]
-    draft_w['xy_pairs_update_flag'] = [True]
 
     writer["current_w"] = "draft_w"
     
@@ -112,7 +119,7 @@ def init_draft_w(writer, check_empty=True):
 # 在将writer传递到backend之前，只传递backend需要的部分
 # 这样从backend返回new_writer后，可以直接用update更新writer_state
 def process_writer_to_backend(writer):
-    remained_keys = ['current_w', 'outline_w', 'chapters_w', 'draft_w']
+    remained_keys = ['current_w', 'outline_w', 'chapters_w', 'draft_w', 'quote_span']
     new_writer = {key: writer[key] for key in remained_keys}
     return copy.deepcopy(new_writer)
 
@@ -293,12 +300,14 @@ def create_text_md(writer):
         table = [[*e, ''] for e in xy_pairs]
         occupied_rows = [False] * len(table)
         for chunk, key, text in apply_chunks:
+            if not isinstance(chunk, Chunk):
+                chunk = Chunk(**chunk)
             assert key == 'y_chunk'
-            pair_span = chunk['pair_span']
-            if any(occupied_rows[pair_span[0]:pair_span[1]]):
+            pair_span = chunk.text_source_slice
+            if any(occupied_rows[pair_span]):
                 raise Exception('apply_chunks中存在重叠的pair_span')
-            occupied_rows[pair_span[0]:pair_span[1]] = [True] * (pair_span[1] - pair_span[0])
-            table[pair_span[0]:pair_span[1]] = [[chunk['x_chunk'], chunk['y_chunk'], text], ] + [None] * (pair_span[1] - pair_span[0] - 1)
+            occupied_rows[pair_span] = [True] * (pair_span.stop - pair_span.start)
+            table[pair_span] = [[chunk.x_chunk, chunk.y_chunk, text], ] + [None] * (pair_span.stop - pair_span.start - 1)
         table = [e for e in table if e is not None]
         if not any(e[1] for e in table):
             column_names = column_names[:2]

@@ -5,7 +5,6 @@ ENABLE_SETTING_SELECT_SUB_MODEL = True # 是否允许选择自行选择辅助模
 RENDER_SAVE_LOAD_BTN = False # 是否显示保存和加载按钮
 RENDER_STOP_BTN = False # 是否显示暂停按钮（目前暂停按钮有些小问题，默认关闭）
 
-PAUSE_ON_PROMPT_FINISHED = False # 在LLM响应完成时自动暂停，方便查看Prompt 
 
 ENABLE_MONOGODB = False # 是否启用MongoDB，启用后下面三项才有效。本机上启动了MongoDB服务后可以将此项设为True。
 MONOGODB_DB_NAME = 'llm_api'
@@ -49,6 +48,7 @@ API_SETTINGS = {
     'gpt': {
         'base_url': '',
         'api_key': '',
+        'proxies': '',
     },
     'zhipuai': {
         'api_key': '',

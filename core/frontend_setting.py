@@ -47,6 +47,7 @@ def new_setting():
         gpt={
             'api_key': '',
             'base_url': '',
+            'proxies': '',
             'default_model': 'gpt-4o',
             'default_sub_model': 'gpt-4o-mini',
             'available_models': list(gpt_model_config.keys())
@@ -263,19 +264,21 @@ def render_setting(setting, setting_state):
             elif setting['provider_name'] in [Provider.GPT, Provider.OTHERS]:
                 def on_submit(main_model, sub_model, gpt_api_key, base_url):
                     provider_config['api_key'] = gpt_api_key
-                    provider_config['base_url'] = base_url
+                    provider_config['base_url'] = base_url.strip()
                     
                     setting['model'] = ModelConfig(
                         model=main_model,
-                        api_key=gpt_api_key,
-                        base_url=base_url,
-                        max_tokens=4096
+                        api_key=provider_config['api_key'],
+                        base_url=provider_config['base_url'],
+                        max_tokens=4096,
+                        proxies=provider_config.get('proxies', None),
                     )
                     setting['sub_model'] = ModelConfig(
                         model=sub_model,
-                        api_key=gpt_api_key,
-                        base_url=base_url,
-                        max_tokens=4096
+                        api_key=provider_config['api_key'],
+                        base_url=provider_config['base_url'],
+                        max_tokens=4096,
+                        proxies=provider_config.get('proxies', None),
                     )
                 
                 submit_event = dict(

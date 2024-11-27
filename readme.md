@@ -31,8 +31,13 @@ Long-Novel-GPT是一个基于GPT等大语言模型的长篇小说生成器。它
 
 <h2 id="更新日志">📅 更新日志</h2>
 
-### 🎉 Long-Novel-GPT 1.9 更新（11月16日最新）
+### 🎉 Long-Novel-GPT 1.10 更新（11月28日最新）
 - 在线演示：[Long-Novel-GPT Demo](http://117.72.16.208:7860/)
+- 在创作时支持单独对选中的段落进行重新创作（通过引用文本）
+- 大纲、章节、正文的生成Prompt得到了优化
+
+
+### 🎉 Long-Novel-GPT 1.9 更新（11月16日）
 - 对于大纲、章节、正文分别内置了三种Prompt可供选择：新建、扩写、润色
 - 支持输入自己的Prompt
 - Prompt预览的交互逻辑更好了
@@ -40,7 +45,7 @@ Long-Novel-GPT是一个基于GPT等大语言模型的长篇小说生成器。它
 - 新增支持智谱GLM模型
 
 
-### 🎉 Long-Novel-GPT 1.8 更新
+### 🎉 Long-Novel-GPT 1.8 更新（11月1日）
 - 新增支持多种大语言模型：
   - OpenAI系列: o1-preivew、o1-mini、gpt4o 等
   - Claude系列: Claude-3.5-Sonnet 等
@@ -55,7 +60,7 @@ Long-Novel-GPT是一个基于GPT等大语言模型的长篇小说生成器。它
   <em>Demo支持多种大语言模型（<a href="assets/support_models_preview.gif">图中</a>展示的是API设置界面）</em>
 </p>
 
-### 🎉 Long-Novel-GPT 1.7 更新
+### 🎉 Long-Novel-GPT 1.7 更新（10月29日）
 
 - 提供了一个在线Demo，支持从一句话创意直接生成全书。
 

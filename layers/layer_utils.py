@@ -41,16 +41,13 @@ def split_text_by_separators(text, separators, keep_separators=True):
         content = chunks[i]
         separator = chunks[i + 1] if i + 1 < len(chunks) else ''
         
+        current_para.append(content)
+        if keep_separators and separator:
+            current_para.append(separator)
+            
         if content.strip():
-            current_para.append(content)
-            if keep_separators and separator:
-                current_para.append(separator)
             paragraphs.append(''.join(current_para))
             current_para = []
-        else:
-            # 如果当前内容为空但有分隔符，且需要保留分隔符
-            if keep_separators and separator:
-                current_para.append(separator)
     
     return paragraphs
 
