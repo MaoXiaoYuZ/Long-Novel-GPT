@@ -2,7 +2,7 @@ import os
 from prompts.chat_utils import chat, log
 from prompts.prompt_utils import load_jinja2_template
 from prompts.common_parser import parse_last_code_block
-from layers.layer_utils import split_text_into_sentences
+from core.writer_utils import split_text_into_sentences
 
 def parser(response_msgs):
     text = parse_last_code_block(response_msgs)

@@ -1,0 +1,101 @@
+.guide-section {
+    background: white;
+    border-radius: 12px;
+    padding: 12px 20px; /* 减小上下内边距 */
+    box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+    margin: 0px 0px; /* 减小上下外边距 */
+    transition: all 0.3s ease;
+}
+
+.guide-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px; /* 减小下边距 */
+}
+
+.guide-header h3 {
+    color: #2c3e50;
+    font-size: 16px;
+    margin: 0;
+    font-weight: 600;
+}
+
+.toggle-guide {
+    background: none;
+    border: none;
+    color: #3498db;
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.toggle-guide:hover {
+    color: #2980b9;
+}
+
+.toggle-guide .toggle-icon {
+    display: inline-block;
+    transition: transform 0.3s ease;
+}
+
+.guide-container {
+    display: flex;
+    gap: 15px; /* 减小间距 */
+    padding: 0 0 5px;/* 减小内边距 */
+}
+
+.guide-item {
+    flex: 1;
+    padding: 12px; /* 减小内边距 */
+    background: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #e0e0e0;
+}
+
+.guide-item h4 {
+    color: #3498db;
+    font-size: 15px;
+    margin-bottom: 8px;/* 减小下边距 */
+}
+
+.guide-item ul {
+    list-style: none;
+    padding: 0;
+    margin: 0; 
+}
+
+.guide-item li {
+    color: #7f8c8d;
+    font-size: 13px;
+    margin-bottom: 6px; /* 减小列表项间距 */
+    line-height: 1.4;/* 减小行高 */
+}
+
+.key-combo {
+    background: #e8f4fc;
+    padding: 2px 6px;
+    border-radius: 4px;
+    color: #3498db;
+    font-weight: 500;
+}
+
+/* 折叠状态的样式 */
+.guide-section.collapsed {
+    padding: 10px 20px; /* 减小折叠状态的内边距 */
+}
+
+.guide-section.collapsed .guide-container {
+    display: none;
+}
+
+.guide-section.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.guide-section.collapsed .guide-header {
+    margin-bottom: 0;
+} 

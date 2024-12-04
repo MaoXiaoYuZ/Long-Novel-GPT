@@ -1,64 +1,63 @@
-MAX_THREAD_NUM = 5 # 生成时采用的最大线程数
+import os
+from dotenv import load_dotenv
 
-RENDER_SETTING_API_TEST_BTN = True # 是否在API测试界面显示测试按钮
-ENABLE_SETTING_SELECT_SUB_MODEL = True # 是否允许选择自行选择辅助模型
-RENDER_SAVE_LOAD_BTN = False # 是否显示保存和加载按钮
-RENDER_STOP_BTN = False # 是否显示暂停按钮（目前暂停按钮有些小问题，默认关闭）
+# Load environment variables
+load_dotenv()
 
+# Thread Configuration
+MAX_THREAD_NUM = int(os.getenv('MAX_THREAD_NUM', 5))
 
-ENABLE_MONOGODB = False # 是否启用MongoDB，启用后下面三项才有效。本机上启动了MongoDB服务后可以将此项设为True。
-MONOGODB_DB_NAME = 'llm_api'
-ENABLE_MONOGODB_CACHE = True # 是否启用API缓存
-CACHE_REPLAY_SPEED = 2  # 缓存命中后2倍速重放
-CACHE_REPLAY_MAX_DELAY = 5 # 缓存命中后最大延迟时间，按秒计算
+# MongoDB Configuration
+ENABLE_MONOGODB = os.getenv('ENABLE_MONGODB', 'false').lower() == 'true'
+MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://127.0.0.1:27017/')
+MONOGODB_DB_NAME = os.getenv('MONGODB_DB_NAME', 'llm_api')
+ENABLE_MONOGODB_CACHE = os.getenv('ENABLE_MONGODB_CACHE', 'true').lower() == 'true'
+CACHE_REPLAY_SPEED = float(os.getenv('CACHE_REPLAY_SPEED', 2))
+CACHE_REPLAY_MAX_DELAY = float(os.getenv('CACHE_REPLAY_MAX_DELAY', 5))
 
-
-# API费用限制设置，需要依赖于MonogoDB
+# API Cost Limits
 API_COST_LIMITS = {
-    'HOURLY_LIMIT_RMB': 100,  # 每小时费用上限（人民币）
-    'DAILY_LIMIT_RMB': 500,   # 每天费用上限（人民币）
-    'USD_TO_RMB_RATE': 7     # 美元兑人民币汇率
+    'HOURLY_LIMIT_RMB': float(os.getenv('API_HOURLY_LIMIT_RMB', 100)),
+    'DAILY_LIMIT_RMB': float(os.getenv('API_DAILY_LIMIT_RMB', 500)),
+    'USD_TO_RMB_RATE': float(os.getenv('API_USD_TO_RMB_RATE', 7))
 }
 
-# 用于配置API，在这里配置可以省去每次启动时在Gradio界面中手动配置的麻烦
+# API Settings
 API_SETTINGS = {
-    # model字典用于配置主模型，如果是OpenAI模型，则api_key和base_url必填；如果文心模型，则ak和sk必填。
-    'model': {
-        'model': 'gpt-4o',
-        'base_url': '',
-        'api_key': '',
-        'max_tokens': 4096
-    },
-    # sub_model字典用于配置辅助模型，辅助模型仅仅用于完成一些简单任务，不要选择费用高的模型！！！
-    'sub_model': {
-        'model': 'gpt-4o-mini',
-        'base_url': '',
-        'api_key': '',
-        'max_tokens': 4096
-    },
     'wenxin': {
-        'ak': '',
-        'sk': '',
+        'ak': os.getenv('WENXIN_AK', ''),
+        'sk': os.getenv('WENXIN_SK', ''),
+        'default_model': os.getenv('WENXIN_DEFAULT_MODEL', 'ERNIE-Novel-8K'),
+        'default_sub_model': os.getenv('WENXIN_DEFAULT_SUB_MODEL', 'ERNIE-3.5-8K'),
+        'max_tokens': 4096,
     },
     'doubao': {
-        'api_key': '',
-        'main_endpoint_id': '',
-        'sub_endpoint_id': '',
+        'api_key': os.getenv('DOUBAO_API_KEY', ''),
+        'main_endpoint_id': os.getenv('DOUBAO_MAIN_ENDPOINT_ID', ''),
+        'sub_endpoint_id': os.getenv('DOUBAO_SUB_ENDPOINT_ID', ''),
+        'default_model': os.getenv('DOUBAO_DEFAULT_MODEL', 'doubao-pro-32k'),
+        'default_sub_model': os.getenv('DOUBAO_DEFAULT_SUB_MODEL', 'doubao-lite-32k'),
+        'max_tokens': 4096,
     },
     'gpt': {
-        'base_url': '',
-        'api_key': '',
-        'proxies': '',
+        'base_url': os.getenv('GPT_BASE_URL', ''),
+        'api_key': os.getenv('GPT_API_KEY', ''),
+        'proxies': os.getenv('GPT_PROXIES', ''),
+        'default_model': os.getenv('GPT_DEFAULT_MODEL', 'gpt-4o'),
+        'default_sub_model': os.getenv('GPT_DEFAULT_SUB_MODEL', 'gpt-4o-mini'),
+        'max_tokens': 4096,
     },
     'zhipuai': {
-        'api_key': '',
+        'api_key': os.getenv('ZHIPUAI_API_KEY', ''),
+        'default_model': os.getenv('ZHIPUAI_DEFAULT_MODEL', 'glm-4-plus'),
+        'default_sub_model': os.getenv('ZHIPUAI_DEFAULT_SUB_MODEL', 'glm-4-flashx'),
+        'max_tokens': 4096,
     },
     'others': {
         'base_url': '',
         'api_key': '',
         'default_model': '',
         'default_sub_model': '',
-        'available_models': [
-        ]
+        'max_tokens': 4096,
     }
 }

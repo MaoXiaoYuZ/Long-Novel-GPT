@@ -1,6 +1,6 @@
 import os
 from prompts.baseprompt import main as base_main
-from layers.layer_utils import split_text_into_sentences
+from core.writer_utils import split_text_into_sentences
 
 def format_outline(text):
     text = text.replace('\n', '')

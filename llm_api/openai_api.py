@@ -35,7 +35,7 @@ def stream_chat_with_gpt(messages, model='gpt-3.5-turbo-1106', response_json=Fal
         client_params['base_url'] = base_url
 
     if proxies:
-        httpx_client = httpx.Client(proxies=proxies)
+        httpx_client = httpx.Client(proxy=proxies)
         client_params["http_client"] = httpx_client
     
     client = OpenAI(**client_params)

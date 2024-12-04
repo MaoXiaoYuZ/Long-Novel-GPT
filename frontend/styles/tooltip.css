@@ -1,0 +1,27 @@
+/* Tooltip styling */
+.select-wrapper[title] {
+    position: relative;
+}
+
+.select-wrapper[title]::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 5px 10px;
+    background: rgba(44, 62, 80, 0.9);
+    color: white;
+    font-size: 12px;
+    border-radius: 4px;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease;
+    margin-bottom: 5px;
+}
+
+.select-wrapper[title]:hover::after {
+    opacity: 1;
+    visibility: visible;
+}

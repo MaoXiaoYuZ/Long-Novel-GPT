@@ -16,25 +16,10 @@ class DraftWriter(Writer):
         yield KeyPointMsg(title='一键生成正文', subtitle='润色正文')
         yield from self.write("润色正文")
 
-    def write(self, user_prompt, y_span=None):
-        init = self.y_len == 0
-
-        if init:
-            chunks = self.get_chunks(
-                x_span=(0, self.x_len),
-            )
-        else:
-            chunks = self.get_chunks(
-                y_span=y_span or (0, self.y_len),
-            )
+    def write(self, user_prompt, pair_span=None):
+        chunks = self.get_chunks(pair_span)
         
-        if user_prompt == '自动' and init:
-            user_prompt = '新建正文'
-
-        if user_prompt == '自动':
-            yield from self.batch_review_write_apply_text(chunks, prompt_draft, "审阅正文")
-        else:
-            yield from self.batch_write_apply_text(chunks, prompt_draft, user_prompt)
+        yield from self.batch_write_apply_text(chunks, prompt_draft, user_prompt)
 
     def split_into_chapters(self):
         pass
