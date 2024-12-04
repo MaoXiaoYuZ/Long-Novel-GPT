@@ -31,8 +31,11 @@ Long-Novel-GPT是一个基于GPT等大语言模型的长篇小说生成器。它
 
 <h2 id="更新日志">📅 更新日志</h2>
 
-### 🎉 Long-Novel-GPT 1.10 更新（11月28日最新）
-- 在线演示：[Long-Novel-GPT Demo](http://117.72.16.208:7860/)
+### 🎉 Long-Novel-GPT 2.0.0 更新（12月4日最新）
+- 在线演示：[Long-Novel-GPT Demo](http://14.103.180.212/)
+- 提供全新的UI界面
+
+### 🎉 Long-Novel-GPT 1.10 更新（11月28日）
 - 在创作时支持单独对选中的段落进行重新创作（通过引用文本）
 - 大纲、章节、正文的生成Prompt得到了优化
 
@@ -53,12 +56,6 @@ Long-Novel-GPT是一个基于GPT等大语言模型的长篇小说生成器。它
   - 豆包: doubao-lite/pro系列
   - 支持任何兼容OpenAI接口的自定义模型
 - 优化了生成界面和用户体验
-
-<p align="center">
-  <img src="assets/support_models_preview.gif" alt="支持的模型预览" width="600"/>
-  <br>
-  <em>Demo支持多种大语言模型（<a href="assets/support_models_preview.gif">图中</a>展示的是API设置界面）</em>
-</p>
 
 ### 🎉 Long-Novel-GPT 1.7 更新（10月29日）
 
@@ -89,54 +86,72 @@ Long-Novel-GPT 1.5及之前版本提供了一个完整的长篇小说生成APP�
 
 ### 在线 Demo
 
-无需安装，立即体验我们的在线 Demo：[Long-Novel-GPT Demo](http://117.72.16.208:7860/)
+无需安装，立即体验我们的在线 Demo：[Long-Novel-GPT Demo](http://14.103.180.212/)
 
 <p align="center">
-  <img src="assets/write_text_preview.gif" alt="写作界面预览" width="600"/>
+  <img src="assets/write_text_preview.gif" alt="创作界面预览" width="600"/>
   <br>
-  <em>多线程并行创作（<a href="assets/write_text_preview.gif">图中</a>展示的是创作正文的场景）</em>
+  <em>多线程并行创作（<a href="assets/write_text_preview.gif">图中</a>展示的是创作剧情的场景）</em>
 </p>
 
-<p align="center">
-  <img src="assets/o1-preview-prompt-preview.png" alt="Claude-3 Prompt预览" width="600"/>
-  <br>
-  <em>支持查看Prompt(<a href="assets/o1-preview-prompt-preview.png">图中</a>是o1-preview模型的回答）</em>
-</p>
 
-### 本地安装
+### Docker一键部署
 
-如果您希望在本地运行 Long-Novel-GPT：
-
+运行下面命令拉取long-novel-gpt镜像
 ```bash
-conda create -n lngpt python
-conda activate lngpt
-pip install -r requirements.txt
+docker pull maoxiaoyuz/long-novel-gpt:2.0.0
 ```
 
-### 启动界面
+下载或复制[.env.example](.env.example)文件，将其放在你的任意一个目录下，将其改名为 **.env**, 并根据文件中提示填写API设置。
 
+填写完成后在该 **.env**文件目录下，运行以下命令：
 ```bash
-cd Long-Novel-GPT
-python core/frontend.py
+docker run -p 80:80 --env-file .env -d maoxiaoyuz/long-novel-gpt:2.0.0
 ```
 
-启动后在浏览器中访问链接即可：[http://localhost:7860/](http://localhost:7860/)
+接下来访问 http://localhost 即可使用，如果是部署在服务器上，则访问你的服务器公网地址即可。
+
 
 <p align="center">
-  <img src="assets/Long-Novel-GPT-1.9-Demo.png" alt="Gradio DEMO有5个Tab页面" width="600"/>
+  <img src="assets/LNGPT-V2.0.png" alt="Gradio DEMO有5个Tab页面" width="600"/>
 </p>
+
+### 使用本地的大模型服务
+要使用本地的大模型服务，只需要在Docker部署时额外注意以下两点。
+
+第一，启动Docker的命令需要添加额外参数，具体如下：
+```bash
+docker run -p 80:80 --env-file .env -d --add-host=host.docker.internal:host-gateway maoxiaoyuz/long-novel-gpt:2.0.0
+```
+
+第二，将本地的大模型服务暴露为OpenAI格式接口，在[.env.example](.env.example)文件中进行配置，同时GPT_BASE_URL中localhost或127.0.0.1需要替换为：**host.docker.internal**
+例如
+```
+# 这里GPT_BASE_URL格式只提供参考，主要是替换localhost或127.0.0.1
+GPT_BASE_URL=http://host.docker.internal:7777/v1
+GPT_API_KEY=you_api_key
+GPT_DEFAULT_MODEL=model_name1
+GPT_DEFAULT_SUB_MODEL=model_name2
+```
 
 <h2 id="demo使用指南">🖥️ Demo 使用指南</h2>
 
 ### 当前Demo能生成百万字小说吗？
-可以，Long-Novel-GPT-1.9通过多线程生成，自动管理上下文，确保了生成剧情的连续。
-在1.7版本中，你需要部署在本地并采用自己的API-Key，在 [`config.py`](config.py) 中配置生成时采用的最大线程数。
-```python
-MAX_THREAD_NUM = 5 # 生成时采用的最大线程数
+Long-Novel-GPT-2.0.0版本完全支持生成百万级别小说的版本，而且是多窗口同步生成，速度非常快。
+
+同时你可以自由控制你需要生成的部分，对选中部分重新生成等等。
+
+而且，Long-Novel-GPT-2.0.0会自动管理上下文，在控制API调用费用的同时确保了生成剧情的连续。
+
+在2.0.0版本中，你需要部署在本地并采用自己的API-Key，在[.env.example](.env.example)文件中配置生成时采用的最大线程数。
+```
+# Thread Configuration - 线程配置
+# 生成时采用的最大线程数
+MAX_THREAD_NUM=5
 ```
 在线Demo是不行的，因为最大线程为5。
 
-### 如何利用LN-GPT-1.9生成百万字小说？
+### 如何利用LN-GPT-2.0.0生成百万字小说？
 首先，你需要部署在本地，配置API-Key并解除线程限制。
 
 然后，在**创作大纲**阶段，需要生成大概40行的剧情，每行50字，这里就有2000字了。（通过不断点击**扩写全部大纲**）
@@ -146,24 +161,10 @@ MAX_THREAD_NUM = 5 # 生成时采用的最大线程数
 最后，在**创作正文**阶段，将20K字扩充到100k字。（50+线程并行）
 
 
-### LN-GPT-1.9生成的百万字小说怎么样？
-1.7版本是首个支持生成百万级别小说的版本，其主要保证的是多线程的处理，生成窗口的管理并且提供一个完整的界面。
+### LN-GPT-2.0.0生成的百万字小说怎么样？
+总的来说，2.0.0版本能够实现在用户监督下生成达到签约门槛的网文。
 
-1.9版本在Prompt上有了极大了优化，提供了新建、扩写、润色三种Prompt供用户选择，而且还支持输入Prompt。
-
-总的来说，1.9版本能够实现在用户监督下生成达到签约门槛的网文。
-
-我们的最终目标始终是实现一键生成全书，将在2-3个版本迭代后正式推出。
-
-
-### 在线Demo使用指南
-1. 当前Demo支持GPT、Claude、文心、豆包、GLM等模型，并且已经配置了API-Key，默认模型为GPT4o，最大线程数为5。
-2. 可以选中**示例**中的任意一个创意，然后点击**创作大纲**来初始化大纲。
-3. 初始化后，点击**开始创作**按钮，可以不断创作大纲，直到满意为止。
-4. 创建完大纲后，点击**创作剧情**按钮，之后重复以上流程。
-5. 选中**一键生成**后，再次点击左侧按钮可以一键生成。
-6. 如果遇到任何无法解决的问题，请点击**刷新**按钮。
-7. 如果问题还是无法解决，请刷新浏览器页面，这会导致丢失所有数据，请手动备份重要文本。
+而且，我们的最终目标始终是实现一键生成全书，将在2-3个版本迭代后正式推出。
 
 <h2 id="贡献">🤝 贡献</h2>
 

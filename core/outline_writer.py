@@ -17,20 +17,10 @@ class OutlineWriter(Writer):
         yield KeyPointMsg(title='一键生成大纲', subtitle='润色大纲')
         yield from self.write("润色大纲", x_span=(0, self.x_len))
 
-    def write(self, user_prompt, y_span=None):
-        init = self.y_len == 0
+    def write(self, user_prompt, pair_span=None):
+        chunks = chunks = self.get_chunks(pair_span)
 
-        chunks = self.get_chunks(
-            x_span=(0, self.x_len),
-        )
-
-        if user_prompt == '自动' and init:
-            user_prompt = '新建大纲'
-
-        if user_prompt == '自动':
-            yield from self.batch_review_write_apply_text(chunks, prompt_outline, "审阅大纲")
-        else:
-            yield from self.batch_write_apply_text(chunks, prompt_outline, user_prompt)
+        yield from self.batch_write_apply_text(chunks, prompt_outline, user_prompt)
 
 
     def get_model(self):

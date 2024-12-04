@@ -1,0 +1,23 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Copy requirements first for better caching
+COPY backend/requirements.txt .
+RUN pip config set global.index-url https://pypi.tuna.tsinghua.edu.cn/simple
+RUN pip install -r requirements.txt
+
+# Copy all necessary project files
+COPY config.py .
+COPY .env .
+COPY backend/app.py .
+COPY backend/healthcheck.py .
+COPY core/ ./core/
+COPY llm_api/ ./llm_api/
+COPY prompts/ ./prompts/
+COPY custom/ ./custom/
+
+EXPOSE 7860
+
+# 优化 gunicorn 配置
+CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--workers", "4", "--threads", "2", "--worker-class", "gthread", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "app:app"] 

@@ -6,10 +6,10 @@
     "configurations": [
         // python -m core.frontend
         {
-            "name": "Frontend",
+            "name": "Backend",
             "type": "debugpy",
             "request": "launch",
-            "module": "core.frontend",
+            "module": "backend.app",
             "console": "integratedTerminal",
             "justMyCode": true,
         },{

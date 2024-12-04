@@ -18,16 +18,15 @@ def load_novel_writer(writer, setting) -> DraftWriter:
         sub_model=setting['sub_model'],
     )
 
-    if 'y_chunk_length' in current_w:
-        kwargs['x_chunk_length'] = current_w['y_chunk_length'] // 2
-        kwargs['y_chunk_length'] = current_w['y_chunk_length']
+    kwargs['x_chunk_length'] = current_w['x_chunk_length']
+    kwargs['y_chunk_length'] = current_w['y_chunk_length']
 
     match current_w_name:
         case 'draft_w':
             novel_writer = DraftWriter(**kwargs)
         case 'outline_w':
             novel_writer = OutlineWriter(**kwargs)
-        case 'chapters_w':
+        case 'chapters_w' | 'plot_w':
             novel_writer = PlotWriter(**kwargs)
         case _:
             raise ValueError(f"unknown writer: {current_w_name}")

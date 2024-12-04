@@ -1,0 +1,12 @@
+flask
+flask-cors
+gunicorn
+openai
+qianfan
+pymongo
+rich
+spark_ai_python
+zhipuai
+flask
+flask-cors
+numpy

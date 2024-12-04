@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Long-Novel-GPT</title>
+    <link rel="stylesheet" href="styles/tooltip.css">
+    <link rel="stylesheet" href="styles/toast.css">
+    <link rel="stylesheet" href="styles/styles.css">
+    <link rel="stylesheet" href="styles/chat_messages.css">
+    <link rel="stylesheet" href="styles/examples.css">
+    <link rel="stylesheet" href="styles/guide.css">
+    <script>window._env_ = window._env_ || {}; window._env_.SERVER_URL = "/api" || "http://127.0.0.1:7860";</script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Long-Novel-GPT</h1>
+            <h2>AI一键生成长篇小说</h2>
+        </header>
+        <div class="mode-selection">
+            <select id="writeMode" style="display: none;">
+                <option value="outline">创作大纲</option>
+                <option value="plot">创作剧情</option>
+                <option value="draft">创作正文</option>
+            </select>
+            <div class="mode-tabs">
+                <div class="mode-tab active" data-value="outline">创作大纲</div>
+                <div class="mode-tab" data-value="plot">创作剧情</div>
+                <div class="mode-tab" data-value="draft">创作正文</div>
+            </div>
+        </div>
+        <div class="prompt-section">
+            <div class="prompt-actions">
+                <button class="action-btn">开始创作</button>
+                <div class="batch-actions hidden">
+                    <button class="batch-accept-btn">全部接受</button>
+                    <button class="batch-reject-btn">全部拒绝</button>
+                </div>
+                <div class="dropdown-group">
+                    <div class="select-wrapper" title="选择创作时的提示词">
+                        <select>
+                            <option>新建大纲</option>
+                            <option>扩写大纲</option>
+                            <option>润色大纲</option>
+                        </select>
+                    </div>
+                    <div class="select-wrapper" title="设置AI创作时每个窗口的大小">
+                        <select class="context-window-select">
+                            <!-- Window size options will be populated by JavaScript -->
+                        </select>
+                    </div>
+                    <div class="select-wrapper" title="选择使用的AI模型">
+                        <select class="model-select">
+                            <option value="zhipuai">GLM4(智谱)</option>
+                            <option value="gpt">GPT4(OpenAI)</option>
+                            <option value="others">Claude3.5(Anthropic)</option>
+                            <option value="wenxin">文心4(百度)</option>
+                            <option value="doubao">豆包Pro(字节跳动)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+            <div class="prompt-input">
+                <textarea placeholder="输入你的Prompt..."></textarea>
+            </div>
+        </div>
+        <div class="guide-section">
+            <div class="guide-header">
+                <h3>使用指南</h3>
+                <button class="toggle-guide">
+                    <span class="toggle-icon">▼</span>
+                </button>
+            </div>
+            <div class="guide-container">
+                <div class="guide-item">
+                    <h4>快捷操作</h4>
+                    <ul>
+                        <li><span class="key-combo">单击</span> 选中需要创作的文本块</li>
+                        <li><span class="key-combo">Ctrl + 点击</span> 多选文本块进行批量操作</li>
+                        <li><span class="key-combo">Shift + 点击</span> 选择连续的文本块</li>
+                        <li>点击<span class="key-combo">▼</span>可以折叠使用指南和创作示例</li>
+                    </ul>
+                </div>
+                <div class="guide-item">
+                    <h4>创作提示</h4>
+                    <ul>
+                        <li>选择更小的窗口更有利于扩充内容</li>
+                        <li>可以<span class="key-combo">自行输入提示词</span>，提示词越精确，生成的内容越符合预期</li>
+                        <li>使用右侧下拉菜单切换不同的 AI 模型和窗口大小</li>
+                    </ul>
+                </div>
+                <div class="guide-item">
+                    <h4>注意事项</h4>
+                    <ul>
+                        <li>在线Demo限制了最大线程数，<span class="key-combo">只有前5个窗口</span>可以同时创作</li>
+                        <li>超过5个的窗口不会输出，但你仍然可以单独选中它们再次创作</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        <div class="examples-section">
+            <div class="examples-header">
+                <h3>创作示例</h3>
+                <button class="toggle-examples">
+                    <span class="toggle-icon">▼</span>
+                </button>
+            </div>
+            <div class="examples-container">
+            </div>
+        </div>
+        <div class="content-section">
+            <div class="column-headers">
+                <div class="left-header">
+                    <div class="column-header-wrapper">
+                        <span>小说简介</span>
+                        <button class="copy-btn" data-column="left">复制</button>
+                    </div>
+                </div>
+                <div class="right-header">
+                    <div class="column-header-wrapper">
+                        <span>大纲</span>
+                        <button class="copy-btn" data-column="right">复制</button>
+                    </div>
+                </div>
+            </div>
+            <div id="chunkContainer">
+            </div>
+        </div>
+    </div>
+    <script type="module" src="js/content_section.js"></script>
+    <script type="module" src="js/prompt_section.js"></script>
+    <script type="module" src="js/chat_messages.js"></script>
+</body>
+</html> 

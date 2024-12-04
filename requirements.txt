@@ -1,7 +1,0 @@
-gradio
-openai
-qianfan
-pymongo
-rich
-spark_ai_python
-zhipuai

@@ -1,0 +1,123 @@
+.examples-section {
+    background: white;
+    border-radius: 12px;
+    padding: 15px 20px;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.05);
+    margin: 0px 0px;
+    transition: all 0.3s ease;
+}
+
+.examples-section h3 {
+    color: #2c3e50;
+    font-size: 16px;
+    margin-bottom: 15px;
+    font-weight: 600;
+}
+
+.examples-container {
+    display: flex;
+    gap: 15px;
+    overflow-x: auto;
+    padding: 2px 0 8px;
+    scrollbar-width: thin;
+    scrollbar-color: #3498db #f0f2f5;
+    cursor: grab;
+    user-select: none;
+}
+
+.examples-container:active {
+    cursor: grabbing;
+}
+
+.examples-container::-webkit-scrollbar {
+    height: 6px;
+}
+
+.examples-container::-webkit-scrollbar-track {
+    background: #f0f2f5;
+    border-radius: 3px;
+}
+
+.examples-container::-webkit-scrollbar-thumb {
+    background: #3498db;
+    border-radius: 3px;
+}
+
+.example-card {
+    flex: 0 0 auto;
+    width: 200px;
+    padding: 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background: #f8f9fa;
+}
+
+.example-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    border-color: #3498db;
+    background: white;
+}
+
+.example-card h4 {
+    color: #3498db;
+    font-size: 15px;
+    margin-bottom: 6px;
+}
+
+.example-card p {
+    color: #7f8c8d;
+    font-size: 13px;
+    margin: 0;
+}
+
+.examples-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.examples-header h3 {
+    margin: 0;
+}
+
+.toggle-examples {
+    background: none;
+    border: none;
+    color: #3498db;
+    cursor: pointer;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.3s ease;
+}
+
+.toggle-examples:hover {
+    color: #2980b9;
+}
+
+.toggle-examples .toggle-icon {
+    display: inline-block;
+    transition: transform 0.3s ease;
+}
+
+/* 折叠状态的样式 */
+.examples-section.collapsed {
+    padding: 12px 20px;
+}
+
+.examples-section.collapsed .examples-container {
+    display: none;
+}
+
+.examples-section.collapsed .toggle-icon {
+    transform: rotate(-90deg);
+}
+
+.examples-section.collapsed .examples-header {
+    margin-bottom: 0;
+} 

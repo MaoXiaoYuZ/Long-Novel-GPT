@@ -1,6 +1,6 @@
 import difflib
 from itertools import accumulate
-from layers.layer_utils import split_text_into_sentences
+from core.writer_utils import split_text_into_sentences
 
 def match_span_by_sentence(chunk, text):
     chunk_lines = split_text_into_sentences(chunk)
