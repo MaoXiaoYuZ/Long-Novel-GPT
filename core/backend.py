@@ -144,7 +144,7 @@ def call_write_long_novel(writer, setting):
 def match_quote_text(writer, setting, quote_text):
     novel_writer = load_novel_writer(writer, setting)
     y_text = novel_writer.y
-    quote_text_span, match_ratio = match_span_by_char(quote_text, y_text)
+    quote_text_span, match_ratio = match_span_by_char(y_text, quote_text)
     if match_ratio > 0.5:
         aligned_span, _ = novel_writer.align_span(y_span=quote_text_span)
         return aligned_span, y_text[aligned_span[0]:aligned_span[1]]

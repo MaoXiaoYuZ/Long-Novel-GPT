@@ -17,7 +17,7 @@ COPY llm_api/ ./llm_api/
 COPY prompts/ ./prompts/
 COPY custom/ ./custom/
 
-EXPOSE 7860
+EXPOSE 7869
 
 # 优化 gunicorn 配置
-CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--workers", "4", "--threads", "2", "--worker-class", "gthread", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "app:app"] 
+CMD ["gunicorn", "--bind", "0.0.0.0:7869", "--workers", "4", "--threads", "2", "--worker-class", "gthread", "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-", "app:app"] 

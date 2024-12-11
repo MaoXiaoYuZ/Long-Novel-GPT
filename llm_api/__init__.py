@@ -14,26 +14,25 @@ class ModelConfig(dict):
         self.validate()
 
     def validate(self):
+        def check_key(provider, keys):
+            for key in keys:    
+                if key not in self:
+                    raise ValueError(f"{provider}的API设置中未传入: {key}")
+                elif not self[key].strip():
+                    raise ValueError(f"{provider}的API设置中未配置: {key}")
+
         if self['model'] in wenxin_model_config:
-            for key in ['ak', 'sk']:
-                if key not in self:
-                    raise ValueError(f"Missing required key: {key}")
+            check_key('文心一言', ['ak', 'sk'])
         elif self['model'] in doubao_model_config:
-            for key in ['api_key', 'endpoint_id']:
-                if key not in self:
-                    raise ValueError(f"Missing required key: {key}")
+            check_key('豆包', ['api_key', 'endpoint_id'])
         elif self['model'] in zhipuai_model_config:
-            for key in ['api_key']:
-                if key not in self:
-                    raise ValueError(f"Missing required key: {key}")
+            check_key('智谱AI', ['api_key'])
         elif self['model'] in gpt_model_config or True:
             # 其他模型名默认采用openai接口调用
-            for key in ['api_key']:
-                if key not in self:
-                    raise ValueError(f"Missing required key: {key}")
+            check_key('OpenAI', ['api_key'])
         
         if 'max_tokens' not in self:
-            raise ValueError('Missing required key: max_tokens')
+            raise ValueError('ModelConfig未传入key: max_tokens')
         else:
             assert self['max_tokens'] <= 4_096, 'max_tokens最大为4096！'
 

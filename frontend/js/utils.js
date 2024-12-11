@@ -14,20 +14,20 @@ export function autoResizeTextarea(textarea) {
 }
 
 // 创建新的chunk
-export function createNewChunk(x, y, revision, showRevision = false) {
+export function createNewChunk(x, y, revision, showRevision = false, showX = true, showY = true) {
     const chunkDiv = document.createElement('div');
     chunkDiv.className = 'chunk-container';
     
     chunkDiv.innerHTML = `
-        <div class="x-item">
+        <div class="x-item ${showX ? '' : 'hidden'}">
             <textarea class="x-input" placeholder="在这里输入...">${x}</textarea>
+        </div>
+        <div class="y-item ${showY ? '' : 'hidden'}">
+            <textarea class="y-input" placeholder="创作的内容会显示在这里...">${y}</textarea>
             <div class="chunk-actions">
                 <button class="add-x-btn">+</button>
                 <button class="delete-x-btn">-</button>
             </div>
-        </div>
-        <div class="y-item">
-            <textarea class="y-input" placeholder="创作的内容会显示在这里...">${y}</textarea>
         </div>
         <div class="revision-item ${showRevision ? 'visible' : ''}">
             <textarea class="revision-input" placeholder="这里会显示修改稿...">${revision}</textarea>
@@ -56,8 +56,11 @@ function handleChunksAdjustment(data_chunks, selectedChunks) {
         let lastSelectedChunk = selectedChunksArray[selectedCount - 1];
         const extraChunks = data_chunks.slice(selectedCount);
         
+        // 获取最后一个chunk的x-item显示状态
+        const showX = !lastSelectedChunk.querySelector('.x-item').classList.contains('hidden');
+        
         extraChunks.forEach(newChunk => {
-            const chunkDiv = createNewChunk(newChunk[0], newChunk[1], '', true);
+            const chunkDiv = createNewChunk(newChunk[0], newChunk[1], '', true, showX);
             lastSelectedChunk.parentNode.insertBefore(chunkDiv, lastSelectedChunk.nextSibling);
             selectedChunks.push(chunkDiv);
             lastSelectedChunk = chunkDiv;
@@ -170,4 +173,48 @@ export function showToast(message, type = 'info', duration = 3000) {
             }
         }, 300); // 等待淡出动画完成
     }, duration);
+}
+
+// 添加新的函数来控制左侧面板的显示/隐藏
+export function toggleLeftPanel(show) {
+    const contentSection = document.querySelector('.content-section');
+    const leftPanel = contentSection.querySelector('.left-panel');
+    const contentArea = contentSection.querySelector('.content-area');
+    
+    if (show) {
+        // 显示左侧面板
+        contentSection.classList.add('show-left-panel');
+        const allXItems = document.querySelectorAll('.x-item');
+        allXItems.forEach(item => item.classList.add('hidden'));
+        
+        if (!leftPanel) {
+            const panel = document.createElement('div');
+            panel.className = 'left-panel';
+            panel.innerHTML = `
+                <textarea class="left-panel-input" placeholder="在这里输入..."></textarea>
+            `;
+            
+            // 如果content-area不存在，创建它
+            if (!contentArea) {
+                const area = document.createElement('div');
+                area.className = 'content-area';
+                area.appendChild(panel);
+                area.appendChild(document.getElementById('chunkContainer'));
+                
+                // 将content-area插入到column-headers后面
+                const headers = contentSection.querySelector('.column-headers');
+                headers.after(area);
+            } else {
+                contentArea.insertBefore(panel, contentArea.firstChild);
+            }
+        }
+    } else {
+        // 隐藏左侧面板
+        contentSection.classList.remove('show-left-panel');
+        const allXItems = document.querySelectorAll('.x-item');
+        allXItems.forEach(item => item.classList.remove('hidden'));
+        if (leftPanel) {
+            leftPanel.remove();
+        }
+    }
 } 

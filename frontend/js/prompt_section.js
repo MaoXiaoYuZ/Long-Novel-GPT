@@ -1,4 +1,4 @@
-import { createNewChunk, updateChunksContent, showToast } from './utils.js';
+import { createNewChunk, updateChunksContent, showToast, toggleLeftPanel } from './utils.js';
 import jsyaml from 'https://cdn.skypack.dev/js-yaml';
 
 let examples = null;
@@ -35,6 +35,7 @@ async function loadExamples() {
 }
 
 function updateExampleCards(mode) {
+    const writeMode = document.getElementById('writeMode');
     const container = document.querySelector('.examples-container');
     if (!container || !examples) return;
     
@@ -59,7 +60,12 @@ function updateExampleCards(mode) {
         card.addEventListener('click', () => {
             const chunks = Array.from(document.querySelectorAll('.chunk-container'));
             if (chunks.length > 0) {
-                updateChunksContent([[example.x, '', null]], chunks, true);
+                if (writeMode.value === 'draft') {
+                    updateChunksContent([[example.x, '', null]], chunks, true);
+                } else {
+                    updateChunksContent([['', '', null]], chunks, true);
+                    document.querySelector('.left-panel-input').value = example.x;
+                }
             }
         });
         container.appendChild(card);
@@ -69,7 +75,9 @@ function updateExampleCards(mode) {
 // Add window size configurations
 const WINDOW_SIZES = {
     'outline': [
-        { x: 4000, y: 4000, label: '4千字' }
+        { x: 1000, y: 1000, label: '1千字' },
+        { x: 2000, y: 2000, label: '2千字' },
+        { x: 500, y: 500, label: '5百字' }
     ],
     'plot': [
         { x: 100, y: 200, label: '2百字' },
@@ -119,21 +127,39 @@ function initModeHandlers() {
                 return;
             }
 
-            // 保存当前chunks数据
-            const currentChunks = Array.from(document.querySelectorAll('.chunk-container'));
-            const chunksData = currentChunks.map(chunk => [
+            // Save current state
+            const currentMode = writeMode.value;
+            let currentChapter = currentMode === 'outline' ? null : document.getElementById('chapterSelect').selectedOptions[0].textContent;
+            const currentChunks = Array.from(document.querySelectorAll('.chunk-container')).map(chunk => [
                 chunk.querySelector('.x-input').value,
                 chunk.querySelector('.y-input').value,
                 chunk.querySelector('.revision-item').classList.contains('visible') ? 
                     chunk.querySelector('.revision-input').value : null
             ]);
-            saveChunksToStorage(writeMode.value, chunksData);
             
+            let currentContext = '';
+            if (currentMode !== 'draft') {
+                const leftPanelInput = document.querySelector('.left-panel-input');
+                if (leftPanelInput) {
+                    currentContext = leftPanelInput.value;
+                }
+            }
+
+            // 保存当前状态
+            saveDataToStorage(currentMode, currentChapter, currentChunks, currentContext);
+
+            // 根据模式切换更新内容
+            if (currentMode === 'outline') {
+                updateChapterSelect(currentChunks);
+            }
+
             // 更新UI状态
             modeTabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             writeMode.value = newMode;
-
+            document.querySelector('.chapter-selection').style.display = 
+                newMode === 'outline' ? 'none' : 'block';
+            
             // 更新列标题
             updateColumnHeaders(newMode);
             
@@ -143,8 +169,9 @@ function initModeHandlers() {
             // 更新示例卡片
             updateExampleCards(newMode);
             
-            // 重新渲染chunks
-            renderChunks();
+            // 重新渲染chunks，这里的渲染是基于新的writemode，所以需要更新currentChapter
+            currentChapter = newMode === 'outline' ? null : document.getElementById('chapterSelect').selectedOptions[0].textContent;
+            renderChunks(currentChapter);
 
             // 更新窗口大小选项
             updateWindowSizeOptions(newMode);
@@ -158,10 +185,10 @@ function initModeHandlers() {
         switch(mode) {
             case 'outline':
                 leftHeaderSpan.textContent = '小说简介';
-                rightHeaderSpan.textContent = '大纲';
+                rightHeaderSpan.textContent = '章节';
                 break;
             case 'plot':
-                leftHeaderSpan.textContent = '大纲';
+                leftHeaderSpan.textContent = '章节';
                 rightHeaderSpan.textContent = '剧情';
                 break;
             case 'draft':
@@ -223,14 +250,34 @@ function updatePromptOptions(mode) {
     }
 }
 
-// Storage management for chunks data
-function saveChunksToStorage(mode, chunks) {
-    const key = `chunks_${mode}`;
-    const chunksJson = JSON.stringify(chunks);
+// Add new function to handle chapter selection
+function handleChapterChange(chapter) {
+    const mode = document.getElementById('writeMode').value;
+    if (mode !== 'outline') {
+        renderChunks(chapter);
+    }
+}
+
+// Modify storage keys based on mode and chapter
+function getStorageKey(mode, chapter = null) {
+    if (mode === 'outline') {
+        return `data_${mode}`;
+    }
+    return `data_${mode}_${chapter}`;
+}
+
+// Consolidated storage functions
+function saveDataToStorage(mode, chapter, chunks, context) {
+    const key = getStorageKey(mode, chapter);
+    const data = {
+        chunks: chunks,
+        context: context
+    };
+    
     try {
-        localStorage.setItem(key, chunksJson);
-        // console.log(`Saved ${mode} chunks to localStorage: ${chunksJson}`);
-        showToast('数据已保存', 'success');
+        localStorage.setItem(key, JSON.stringify(data));
+        // console.log(`Saved ${mode} data to localStorage`);
+        showToast('数据已保存', 'success', 1000);
     } catch (e) {
         console.error('Error saving to localStorage:', e);
         if (e.name === 'QuotaExceededError') {
@@ -241,40 +288,75 @@ function saveChunksToStorage(mode, chunks) {
     }
 }
 
-function deleteChunksStorage(mode) {
-    const key = `chunks_${mode}`;
-    try {
-        localStorage.removeItem(key);
-        console.log(`Deleted storage: ${key}`);
-    } catch (e) {
-        console.error('Error deleting from localStorage:', e);
-    }
-}
-
-function getChunksFromStorage(mode) {
-    const key = `chunks_${mode}`;
+function getDataFromStorage(mode, chapter = null) {
+    const key = getStorageKey(mode, chapter);
     try {
         const value = localStorage.getItem(key);
-        if (!value) return [];
+        if (!value) return { chunks: [], context: '' };
         return JSON.parse(value);
     } catch (e) {
-        console.error('Error getting chunks from localStorage:', e);
-        return [];
+        console.error('Error getting data from localStorage:', e);
+        return { chunks: [], context: '' };
     }
 }
 
-function renderChunks() {
-    // 从storage中获取chunks数据，必须至少有一个chunk
-    let saveChunks = getChunksFromStorage(writeMode.value);
-    if (saveChunks.length === 0) saveChunks = [['', '', null]];
-    updateChunksContent(saveChunks, Array.from(document.querySelectorAll('.chunk-container')), true);
-    // console.log(`Render ${writeMode.value} chunks: ${saveChunks}`);
+// Update renderChunks to use consolidated storage
+function renderChunks(chapter = null) {
+    const mode = document.getElementById('writeMode').value;
+    const showLeftPanel = mode !== 'draft';
+    
+    // Toggle left panel visibility
+    toggleLeftPanel(showLeftPanel);
+    
+    // Get saved data
+    const savedData = getDataFromStorage(mode, chapter);
+
+    if (mode === 'plot'){
+        const outlineData = getDataFromStorage('outline');
+        const chapterContent = outlineData.chunks.find(chunk => 
+            chunk[1].split('\n')[0].substring(0, 10) === chapter
+        );
+        if (chapterContent && chapterContent[1] !== '') {
+            if (savedData.context === '')savedData.context = chapterContent[1];
+            else if (savedData.context !== chapterContent[1]){
+                showToast('章节内容和<创作章节>中不一致', 'warning');
+            }
+        }else{
+            showToast('章节内容未找到', 'warning');
+        }
+    }
+
+    if (mode === 'draft'){
+        const plotData = getDataFromStorage('plot', chapter);
+        const new_plot_text = plotData.chunks.map(chunk => chunk[1]).join('\n');
+        if (plotData.chunks.length > 0 && new_plot_text !== ''){
+            const old_plot_text = savedData.chunks.map(chunk => chunk[0]).join('\n');
+            if (old_plot_text === ''){
+                savedData.chunks = [[new_plot_text, '', null]];
+            }
+            else if (old_plot_text !== new_plot_text){
+                showToast('剧情内容和<创作剧情>中不一致', 'warning');
+            }
+        }else{
+            showToast('未找到该章节的剧情内容', 'warning');
+        }
+    }
+    
+    // Update left panel content if visible
+    if (showLeftPanel) {
+        const leftPanelInput = document.querySelector('.left-panel-input');
+        if (leftPanelInput) {
+            leftPanelInput.value = savedData.context || '';
+        }
+    }
+    
+    // Get and render chunks
+    let chunks = savedData.chunks;
+    if (chunks.length === 0) chunks = [['', '', null]];
+    updateChunksContent(chunks, Array.from(document.querySelectorAll('.chunk-container')), true);
 }
 
-function initChunksManagement() {
-    deleteChunksStorage; // 闭包, 用于debug
-    // deleteChunksStorage('outline');deleteChunksStorage('plot');deleteChunksStorage('draft');
-    
+function initChunksManagement() {    
     const chunkContainer = document.getElementById('chunkContainer');
     const initialChunk = createNewChunk('', '', '');
     chunkContainer.appendChild(initialChunk);
@@ -365,13 +447,54 @@ async function initExamplesSection() {
     }
 }
 
-// 添加使用指南折叠功能
-const guideSection = document.querySelector('.guide-section');
-const toggleGuideBtn = document.querySelector('.toggle-guide');
 
-if (toggleGuideBtn) {
-    toggleGuideBtn.addEventListener('click', () => {
-        guideSection.classList.toggle('collapsed');
+// 添加使用指南折叠功能
+function initGuideSection() {
+    const guideSection = document.querySelector('.guide-section');
+    const toggleGuideBtn = document.querySelector('.toggle-guide');
+
+    if (toggleGuideBtn) {
+        toggleGuideBtn.addEventListener('click', () => {
+            guideSection.classList.toggle('collapsed');
+        });
+    }
+}
+
+// Modify initChapterSelection to handle chapter changes
+function initChapterSelection() {
+    const chapterSelect = document.getElementById('chapterSelect');
+    const chapterSelection = document.querySelector('.chapter-selection');
+    
+    if (chapterSelect) {
+        // Show/hide chapter selection based on mode
+        const mode = document.getElementById('writeMode').value;
+        chapterSelection.style.display = mode === 'outline' ? 'none' : 'block';
+        
+        chapterSelect.addEventListener('change', (e) => {
+            handleChapterChange(e.target.value);
+        });
+    }
+}
+
+// 新增函数：更新章节选择器
+function updateChapterSelect(chunks) {
+    const chapterSelect = document.getElementById('chapterSelect');
+    chapterSelect.innerHTML = '';
+
+    // Check if any chunk has non-empty content
+    const hasValidChunks = chunks.some(chunk => chunk[1].trim());
+    if (!hasValidChunks) {
+        chunks = [['', '默认章节名', null]];
+    }
+    
+    chunks.forEach((chunk, index) => {
+        if (chunk[1].trim()) {
+            const firstLine = chunk[1].split('\n')[0].substring(0, 10);
+            const option = document.createElement('option');
+            option.value = firstLine;
+            option.textContent = `${firstLine}`;
+            chapterSelect.appendChild(option);
+        }
     });
 }
 
@@ -382,4 +505,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initChunksManagement();
     initCopyButtons();
     initExamplesSection();
+    initGuideSection();
+    initChapterSelection();
 }); 
+

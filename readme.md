@@ -31,8 +31,11 @@ Long-Novel-GPT是一个基于GPT等大语言模型的长篇小说生成器。它
 
 <h2 id="更新日志">📅 更新日志</h2>
 
-### 🎉 Long-Novel-GPT 2.0.0 更新（12月4日最新）
+### 🎉 Long-Novel-GPT 2.1 更新（12月13日最新）
 - 在线演示：[Long-Novel-GPT Demo](http://14.103.180.212/)
+- 支持创作章节
+
+### 🎉 Long-Novel-GPT 2.0 更新（12月4日）
 - 提供全新的UI界面
 
 ### 🎉 Long-Novel-GPT 1.10 更新（11月28日）
@@ -70,9 +73,6 @@ Long-Novel-GPT是一个基于GPT等大语言模型的长篇小说生成器。它
 - 支持生成大纲和章节（进行中）
 
 
-### 📜 之前版本
-Long-Novel-GPT 1.5及之前版本提供了一个完整的长篇小说生成APP，但是在操作体验上并不完善。从1.6版本起，将更加注重用户体验，重写了一个新的界面，并将项目文件搬到了[core](core)目录下。之前的[demo](demo/app.py)已经不支持了，如果想要体验，可以选择之前的commit进行下载。
-
 <h2 id="小说生成prompt">📚 小说生成 Prompt</h2>
 
 | Prompt | 描述 |
@@ -99,15 +99,16 @@ Long-Novel-GPT 1.5及之前版本提供了一个完整的长篇小说生成APP�
 
 运行下面命令拉取long-novel-gpt镜像
 ```bash
-docker pull maoxiaoyuz/long-novel-gpt:2.0.0
+docker pull maoxiaoyuz/long-novel-gpt:latest
 ```
 
 下载或复制[.env.example](.env.example)文件，将其放在你的任意一个目录下，将其改名为 **.env**, 并根据文件中提示填写API设置。
 
 填写完成后在该 **.env**文件目录下，运行以下命令：
 ```bash
-docker run -p 80:80 --env-file .env -d maoxiaoyuz/long-novel-gpt:2.0.0
+docker run -p 80:80 --env-file .env -d maoxiaoyuz/long-novel-gpt:latest
 ```
+**注意，如果你在启动后改动了.env文件，那么必须关闭已启动的容器后，再运行上述命令才行。**
 
 接下来访问 http://localhost 即可使用，如果是部署在服务器上，则访问你的服务器公网地址即可。
 
@@ -121,7 +122,7 @@ docker run -p 80:80 --env-file .env -d maoxiaoyuz/long-novel-gpt:2.0.0
 
 第一，启动Docker的命令需要添加额外参数，具体如下：
 ```bash
-docker run -p 80:80 --env-file .env -d --add-host=host.docker.internal:host-gateway maoxiaoyuz/long-novel-gpt:2.0.0
+docker run -p 80:80 --env-file .env -d --add-host=host.docker.internal:host-gateway maoxiaoyuz/long-novel-gpt:latest
 ```
 
 第二，将本地的大模型服务暴露为OpenAI格式接口，在[.env.example](.env.example)文件中进行配置，同时GPT_BASE_URL中localhost或127.0.0.1需要替换为：**host.docker.internal**
@@ -137,13 +138,13 @@ GPT_DEFAULT_SUB_MODEL=model_name2
 <h2 id="demo使用指南">🖥️ Demo 使用指南</h2>
 
 ### 当前Demo能生成百万字小说吗？
-Long-Novel-GPT-2.0.0版本完全支持生成百万级别小说的版本，而且是多窗口同步生成，速度非常快。
+Long-Novel-GPT-2.1版本完全支持生成百万级别小说的版本，而且是多窗口同步生成，速度非常快。
 
 同时你可以自由控制你需要生成的部分，对选中部分重新生成等等。
 
-而且，Long-Novel-GPT-2.0.0会自动管理上下文，在控制API调用费用的同时确保了生成剧情的连续。
+而且，Long-Novel-GPT-2.1会自动管理上下文，在控制API调用费用的同时确保了生成剧情的连续。
 
-在2.0.0版本中，你需要部署在本地并采用自己的API-Key，在[.env.example](.env.example)文件中配置生成时采用的最大线程数。
+在2.1版本中，你需要部署在本地并采用自己的API-Key，在[.env.example](.env.example)文件中配置生成时采用的最大线程数。
 ```
 # Thread Configuration - 线程配置
 # 生成时采用的最大线程数
@@ -151,18 +152,21 @@ MAX_THREAD_NUM=5
 ```
 在线Demo是不行的，因为最大线程为5。
 
-### 如何利用LN-GPT-2.0.0生成百万字小说？
+### 如何利用LN-GPT-2.1生成百万字小说？
 首先，你需要部署在本地，配置API-Key并解除线程限制。
 
-然后，在**创作大纲**阶段，需要生成大概40行的剧情，每行50字，这里就有2000字了。（通过不断点击**扩写全部大纲**）
+然后，在**创作章节**阶段，创作50章，每章200字。（50+线程并行）
 
-其次，在**创作剧情**阶段，将大纲2k字扩充到20k字。（10+线程并行）
+其次，在**创作剧情**阶段，将每章的200字扩充到1k字。
 
-最后，在**创作正文**阶段，将20K字扩充到100k字。（50+线程并行）
+最后，在**创作正文**阶段，将每章的1K字扩充到2k字，这一步主要是润色文本和描写。
 
+一共，50 * 2k = 100k (十万字)。
 
-### LN-GPT-2.0.0生成的百万字小说怎么样？
-总的来说，2.0.0版本能够实现在用户监督下生成达到签约门槛的网文。
+**创作章节支持创作无限长度的章节数，同理，剧情和正文均不限长度，LNGPT会自动进行切分，自动加入上下文，并自动采取多个线程同时创作。**
+
+### LN-GPT-2.1生成的百万字小说怎么样？
+总的来说，2.1版本能够实现在用户监督下生成达到签约门槛的网文。
 
 而且，我们的最终目标始终是实现一键生成全书，将在2-3个版本迭代后正式推出。
 

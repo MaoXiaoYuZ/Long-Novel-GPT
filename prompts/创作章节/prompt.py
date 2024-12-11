@@ -12,7 +12,7 @@ def main(model, user_prompt, **kwargs):
     dirname = os.path.dirname(__file__)
 
     if 'context_y' in kwargs and 'y' in kwargs and kwargs['context_y'] == kwargs['y']:
-        kwargs['context_y'] = '参考**大纲**'
+        kwargs['context_y'] = '参考**章节**'
     
     for ret in base_main(model, dirname, user_prompt, **kwargs):
         # ret['text'] = format_outline(ret['text'])

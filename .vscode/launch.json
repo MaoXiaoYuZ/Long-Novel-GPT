@@ -12,6 +12,10 @@
             "module": "backend.app",
             "console": "integratedTerminal",
             "justMyCode": true,
+            "env": {
+                "BACKEND_PORT": "7869",
+                "FRONTEND_PORT": "9999"
+            }
         },{
             "name": "Test",
             "type": "debugpy",

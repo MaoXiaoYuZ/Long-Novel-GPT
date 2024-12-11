@@ -23,7 +23,7 @@ from core.outline_writer import OutlineWriter
 
 # 添加配置
 BACKEND_HOST = os.environ.get('BACKEND_HOST', '0.0.0.0')
-BACKEND_PORT = int(os.environ.get('BACKEND_PORT', 7860))
+BACKEND_PORT = int(os.environ.get('BACKEND_PORT', 7869))
 
 
 @app.route('/health', methods=['GET'])
@@ -34,7 +34,7 @@ def health_check():
     }), 200
 
 
-def load_novel_writer(writer_mode, chunk_list, x_chunk_length, y_chunk_length, model_provider) -> DraftWriter:
+def load_novel_writer(writer_mode, chunk_list, global_context, x_chunk_length, y_chunk_length, model_provider) -> DraftWriter:
     kwargs = dict(
         xy_pairs=chunk_list,
         model=get_model_config_from_settings(model_provider, 'main'),
@@ -46,10 +46,13 @@ def load_novel_writer(writer_mode, chunk_list, x_chunk_length, y_chunk_length, m
 
     match writer_mode:
         case 'draft':
+            kwargs['global_context'] = {}
             novel_writer = DraftWriter(**kwargs)
         case 'outline':
+            kwargs['global_context'] = {'summary': global_context}
             novel_writer = OutlineWriter(**kwargs)
-        case 'chapters' | 'plot':
+        case 'plot':
+            kwargs['global_context'] = {'chapter': global_context}
             novel_writer = PlotWriter(**kwargs)
         case _:
             raise ValueError(f"unknown writer: {writer_mode}")
@@ -66,19 +69,22 @@ def get_model_config_from_settings(model_provider, model_type):
         elif model_type == 'sub':
             model_config = {**provider_config, 'model': provider_config['default_sub_model'], 'endpoint_id': provider_config['sub_endpoint_id']}
     else:
-        model_config = {**provider_config, 'model': provider_config['default_model']}
+        if model_type == 'main':
+            model_config = {**provider_config, 'model': provider_config['default_model']}
+        elif model_type == 'sub':
+            model_config = {**provider_config, 'model': provider_config['default_sub_model']}
 
     return ModelConfig(**model_config)
 
 
 prompt_names = dict(
-    outline = ['新建大纲', '扩写大纲', '润色大纲'],
+    outline = ['新建章节', '扩写章节', '润色章节'],
     plot = ['新建剧情', '扩写剧情', '润色剧情'],
     draft = ['新建正文', '扩写正文', '润色正文'],
 )
 
 prompt_dirname = dict(
-    outline = 'prompts/创作大纲',
+    outline = 'prompts/创作章节',
     plot = 'prompts/创作剧情',
     draft = 'prompts/创作正文',
 )
@@ -131,7 +137,7 @@ def get_delta_chunks(prev_chunks, curr_chunks):
     return "delta", delta_chunks
 
 
-def call_write(writer_mode, chunk_list, chunk_span, prompt_content, x_chunk_length, y_chunk_length, model_provider):
+def call_write(writer_mode, chunk_list, global_context, chunk_span, prompt_content, x_chunk_length, y_chunk_length, model_provider):
     # 输入的chunk_list中每个chunk需要加上换行，除了最后一个chunk（因为是从页面中各个chunk传来的）
     chunk_list = [[e.strip() + ('\n' if e.strip() and rowi != len(chunk_list)-1 else '') for e in row] for rowi, row in enumerate(chunk_list)]
 
@@ -157,15 +163,17 @@ def call_write(writer_mode, chunk_list, chunk_span, prompt_content, x_chunk_leng
                 "chunk_list": new_chunks
             }
         
-    novel_writer = load_novel_writer(writer_mode, chunk_list, x_chunk_length, y_chunk_length, model_provider)
+    novel_writer = load_novel_writer(writer_mode, chunk_list, global_context, x_chunk_length, y_chunk_length, model_provider)
     
 
-    # 进行初始的区块划分
-    target_chunk = novel_writer.get_chunk(pair_span=chunk_span)
-    new_target_chunk = novel_writer.map_text_wo_llm(target_chunk)
-    novel_writer.apply_chunks([target_chunk], [new_target_chunk])
-    chunk_span = novel_writer.get_chunk_pair_span(new_target_chunk)
-    init_novel_writer = load_novel_writer(writer_mode, list(novel_writer.xy_pairs), x_chunk_length, y_chunk_length, model_provider)
+    # draft需要映射，所以进行初始划分
+    if writer_mode == 'draft':
+        target_chunk = novel_writer.get_chunk(pair_span=chunk_span)
+        new_target_chunk = novel_writer.map_text_wo_llm(target_chunk)
+        novel_writer.apply_chunks([target_chunk], [new_target_chunk])
+        chunk_span = novel_writer.get_chunk_pair_span(new_target_chunk)
+    
+    init_novel_writer = load_novel_writer(writer_mode, list(novel_writer.xy_pairs), global_context, x_chunk_length, y_chunk_length, model_provider)
     
     # TODO: writer.write 应该保证无论什么prompt，都能够同时适应y为空和y有值地情况
     # 换句话说，就是虽然可以单列出一个“新建正文”，但用扩写正文也能实现同样的效果。
@@ -203,9 +211,7 @@ def call_write(writer_mode, chunk_list, chunk_span, prompt_content, x_chunk_leng
             last_yield_time = current_time  # Update the last yield time
 
     # 这里是计算出一个编辑上的更改，方便前端显示，后续diff功能将不由writer提供，因为这是为了显示的要求
-    data_chunks = []
-    for chunk, key, value in init_novel_writer.diff_to(novel_writer, pair_span=chunk_span):
-        data_chunks.append((chunk.x_chunk, chunk.y_chunk, value))
+    data_chunks = init_novel_writer.diff_to(novel_writer, pair_span=chunk_span)
 
     yield delta_wrapper(data_chunks, done=True)
 
@@ -220,10 +226,11 @@ def write():
     x_chunk_length = data['x_chunk_length']
     y_chunk_length = data['y_chunk_length']
     model_provider = data['model_provider']
+    global_context = data['global_context']
     
     def generate():
         try:
-            for result in call_write(writer_mode, list(chunk_list), chunk_span, prompt_content, x_chunk_length, y_chunk_length, model_provider):
+            for result in call_write(writer_mode, list(chunk_list), global_context, chunk_span, prompt_content, x_chunk_length, y_chunk_length, model_provider):
                 yield f"data: {json.dumps(result)}\n\n"
         except Exception as e:
             error_msg = f"创作出错：\n{str(e)}"

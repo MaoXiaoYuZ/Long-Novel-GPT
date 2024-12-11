@@ -2,7 +2,7 @@ import http.client
 import sys
 import os
 
-BACKEND_PORT = int(os.environ.get('BACKEND_PORT', 7860))
+BACKEND_PORT = int(os.environ.get('BACKEND_PORT', 7869))
 
 
 def check_health():

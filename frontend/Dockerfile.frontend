@@ -9,6 +9,6 @@ COPY data/ /usr/share/nginx/html/data/
 # 复制 nginx 配置
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+EXPOSE 9999
 
 CMD ["nginx", "-g", "daemon off;"] 

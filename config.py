@@ -1,8 +1,21 @@
 import os
-from dotenv import load_dotenv
+from dotenv import dotenv_values, load_dotenv
 
-# Load environment variables
-load_dotenv()
+print("Loading .env file...")
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+if os.path.exists(env_path):
+    env_dict = dotenv_values(env_path)
+    
+    print("Environment variables to be loaded:")
+    for key, value in env_dict.items():
+        print(f"{key}={value}")
+    print("-" * 50)
+    
+    os.environ.update(env_dict)
+    print(f"Loaded environment variables from: {env_path}")
+else:
+    print("Warning: .env file not found")
+
 
 # Thread Configuration
 MAX_THREAD_NUM = int(os.getenv('MAX_THREAD_NUM', 5))

@@ -15,8 +15,8 @@ TIMEOUT=${TIMEOUT:-120}
 # fi
 
 # 替换nginx配置中的端口
-sed -i "s/listen 80/listen $FRONTEND_PORT/g" /etc/nginx/conf.d/default.conf
-sed -i "s/host.docker.internal:7860/localhost:$BACKEND_PORT/g" /etc/nginx/conf.d/default.conf
+sed -i "s/listen 9999/listen $FRONTEND_PORT/g" /etc/nginx/conf.d/default.conf
+sed -i "s/host.docker.internal:7869/localhost:$BACKEND_PORT/g" /etc/nginx/conf.d/default.conf
 
 # 启动nginx
 nginx
