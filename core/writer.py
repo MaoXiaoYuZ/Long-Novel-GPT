@@ -9,7 +9,7 @@ from prompts.对齐剧情和正文 import prompt as match_plot_and_text
 from prompts.审阅.prompt import main as prompt_review
 from core.writer_utils import split_text_into_chunks, detect_max_edit_span, run_yield_func
 from core.writer_utils import KeyPointMsg
-
+from core.diff_utils import get_chunk_changes
 
 
 class Chunk(dict):
@@ -95,8 +95,9 @@ class Chunk(dict):
     
     
 class Writer:
-    def __init__(self, xy_pairs, model:ModelConfig=None, sub_model:ModelConfig=None, x_chunk_length=1000, y_chunk_length=1000):
+    def __init__(self, xy_pairs, global_context=None, model:ModelConfig=None, sub_model:ModelConfig=None, x_chunk_length=1000, y_chunk_length=1000):
         self.xy_pairs = xy_pairs
+        self.global_context = global_context or {}
 
         self.model = model
         self.sub_model = sub_model
@@ -203,6 +204,12 @@ class Writer:
         )
     
     def get_chunk_pair_span(self, chunk: Chunk):
+        pair_start, pair_end = chunk.text_source_slice.start, chunk.text_source_slice.stop
+        merged_x_chunk = ''.join(p[0] for p in self.xy_pairs[pair_start:pair_end])
+        merged_y_chunk = ''.join(p[1] for p in self.xy_pairs[pair_start:pair_end])
+        if merged_x_chunk == chunk.x_chunk and merged_y_chunk == chunk.y_chunk:
+            return pair_start, pair_end
+
         pair_start, pair_end = 0, len(self.xy_pairs)
         x_chunk, y_chunk = chunk.x_chunk, chunk.y_chunk
         for i, (x, y) in enumerate(self.xy_pairs):
@@ -224,15 +231,23 @@ class Writer:
         return (pair_start, pair_end)
     
     def apply_chunks(self, chunks: list[Chunk], new_chunks: list[Chunk]):
-        for chunk, new_chunk in zip(chunks, new_chunks):
-            if not isinstance(chunk, Chunk):
-                chunk = Chunk(**chunk)
-            if not isinstance(new_chunk, Chunk):
-                new_chunk = Chunk(**new_chunk)
-            
-            pair_span = self.get_chunk_pair_span(chunk)
-            self.xy_pairs[pair_span[0]:pair_span[1]] = new_chunk.text_pairs
-        
+        occupied_pair_span = [False] * len(self.xy_pairs)
+        pair_span_list = [self.get_chunk_pair_span(e) for e in chunks]
+        for pair_span in pair_span_list:
+            assert not any(occupied_pair_span[pair_span[0]:pair_span[1]]), "Chunk overlap"
+            occupied_pair_span[pair_span[0]:pair_span[1]] = [True] * (pair_span[1] - pair_span[0])
+        # TODO: 这里可以验证occupied_pair_span是否全被占据
+        new_pairs_list = [e.text_pairs for e in new_chunks]
+
+        sorted_spans_with_new_pairs = sorted(
+            zip(pair_span_list, new_pairs_list),
+            key=lambda x: x[0][0],
+            reverse=True
+        )
+
+        for (start, end), new_pairs in sorted_spans_with_new_pairs:
+            self.xy_pairs[start:end] = new_pairs
+
     def get_chunks(self, pair_span=None, chunk_length_ratio=1, context_length_ratio=1, offset_ratio=0):
         pair_span = pair_span or (0, len(self.xy_pairs))
         chunk_length = self.x_chunk_length * chunk_length_ratio, self.y_chunk_length * chunk_length_ratio
@@ -320,6 +335,19 @@ class Writer:
     def diff_to(self, cur, pair_span=None):
         if pair_span is None:
             pair_span = (0, len(self.xy_pairs))
+        
+        if self.count_span_length(pair_span)[0] == 0:
+            # 2.1版本中，章节和剧情的创作不参考x
+            pair_span2 = (0 + pair_span[0], len(cur.xy_pairs) - (len(self.xy_pairs) - pair_span[1]))
+            y_list = [e[1] for e in self.xy_pairs[pair_span[0]:pair_span[1]]] 
+            y2_list =[e[1] for e in cur.xy_pairs[pair_span2[0]:pair_span2[1]]]
+            
+            y_list += ['',] * max(len(y2_list) - len(y_list), 0)
+            y2_list += ['',] * max(len(y_list) - len(y2_list), 0)
+
+            data_chunks = [('', y, y2) for y, y2 in zip(y_list, y2_list)]
+
+            return data_chunks
 
         pre_pointer = 0, 1
         cur_pointer = 0, 1
@@ -350,7 +378,11 @@ class Writer:
             if text_source_slice.start >= pair_span[0] and text_source_slice.stop <= pair_span[1]:
                 filtered_apply_chunks.append(e)
 
-        return filtered_apply_chunks
+        data_chunks = []
+        for chunk, key, value in filtered_apply_chunks:
+            data_chunks.append((chunk.x_chunk, chunk.y_chunk, value))
+
+        return data_chunks
 
     # 临时函数，用于配合前端
     def apply_chunk(self, chunk:Chunk, key, value):
@@ -375,6 +407,8 @@ class Writer:
             prompt_kwargs = {k: getattr(chunk, k) for k in chunk2prompt_key.keys()}
         
         prompt_kwargs = {chunk2prompt_key.get(k, k): v for k, v in prompt_kwargs.items()}
+
+        prompt_kwargs.update(self.global_context)   # prompt_kwargs会把所有的信息都带上，至于要用哪些由prompt决定
         
         result = yield from prompt_main(
             model=model or self.get_model(),
@@ -398,19 +432,15 @@ class Writer:
         # 该函数尝试不用LLM进行映射，目标是保证chunk.pairs中每个pair的长度合适，如果长了，进行划分，如果无法划分，报错
         new_xy_pairs = []
         for x, y in chunk.text_pairs:
-            if len(x) > self.x_chunk_length:
-                if not y.strip():
-                    x_pairs = split_text_into_chunks(x, self.x_chunk_length, min_chunk_n=1, min_chunk_size=5)
-                    new_xy_pairs.extend([(x_pair, y) for x_pair in x_pairs])
-                else:
-                    raise ValueError("窗口太小或段落太长!考虑选择更大的窗口长度或手动分段。")
-            elif len(y) > self.y_chunk_length:
-                if not x.strip():
-                    y_pairs = split_text_into_chunks(y, self.y_chunk_length, min_chunk_n=1, min_chunk_size=5)
-                    new_xy_pairs.extend([(x, y_pair) for y_pair in y_pairs])
-                else:
-                    raise ValueError("窗口太小或段落太长!考虑选择更大的窗口长度或手动分段。")
+            if x.strip() and not y.strip():
+                x_pairs = split_text_into_chunks(x, self.x_chunk_length, min_chunk_n=1, min_chunk_size=5)
+                new_xy_pairs.extend([(x_pair, y) for x_pair in x_pairs])
+            elif not x.strip() and y.strip():
+                y_pairs = split_text_into_chunks(y, self.y_chunk_length, min_chunk_n=1, min_chunk_size=5)
+                new_xy_pairs.extend([(x, y_pair) for y_pair in y_pairs])
             else:
+                if len(x) > self.x_chunk_length or len(y) > self.y_chunk_length:
+                    raise ValueError("窗口太小或段落太长!考虑选择更大的窗口长度或手动分段。")
                 new_xy_pairs.append((x, y))
         
         return chunk.edit(text_pairs=new_xy_pairs)
@@ -418,10 +448,17 @@ class Writer:
     def map_text(self, chunk:Chunk):
         # TODO: map会检查映射的内容是否大致匹配，是否有错误映射到context的情况
 
-        x_pairs = split_text_into_chunks(chunk.x_chunk, self.x_chunk_length, min_chunk_n=1, min_chunk_size=5, max_chunk_n=20)
-        assert len(x_pairs) >= len(chunk.text_pairs), "未知错误！合并所有区块后再分区块，结果更少？"
-        if len(x_pairs) == len(chunk.text_pairs):
-            return chunk, True, ''
+        if chunk.x_chunk.strip():
+            x_pairs = split_text_into_chunks(chunk.x_chunk, self.x_chunk_length, min_chunk_n=1, min_chunk_size=5, max_chunk_n=20)
+            assert len(x_pairs) >= len(chunk.text_pairs), "未知错误！合并所有区块后再分区块，结果更少？"
+            if len(x_pairs) == len(chunk.text_pairs):
+                return chunk, True, ''
+        else:
+            # 这说明y的创作是不参照x的，而是参照global_context
+            y_pairs = split_text_into_chunks(chunk.y_chunk, self.y_chunk_length, min_chunk_n=1, min_chunk_size=5, max_chunk_n=20)
+            new_xy_pairs = [('', y) for y in y_pairs]
+            return chunk.edit(text_pairs=new_xy_pairs), True, ''
+
         try:
             y_pairs = split_text_into_chunks(chunk.y_chunk, self.y_chunk_length, min_chunk_n=len(x_pairs), min_chunk_size=5, max_chunk_n=20)
         except Exception as e:

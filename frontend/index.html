@@ -10,24 +10,42 @@
     <link rel="stylesheet" href="styles/chat_messages.css">
     <link rel="stylesheet" href="styles/examples.css">
     <link rel="stylesheet" href="styles/guide.css">
-    <script>window._env_ = window._env_ || {}; window._env_.SERVER_URL = "/api" || "http://127.0.0.1:7860";</script>
+    <script>window._env_ = window._env_ || {}; window._env_.SERVER_URL = "/api" || "http://127.0.0.1:7869";</script>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Long-Novel-GPT</h1>
+            <h1>Long-Novel-GPT V2.1</h1>
             <h2>AI一键生成长篇小说</h2>
         </header>
-        <div class="mode-selection">
-            <select id="writeMode" style="display: none;">
-                <option value="outline">创作大纲</option>
-                <option value="plot">创作剧情</option>
-                <option value="draft">创作正文</option>
-            </select>
-            <div class="mode-tabs">
-                <div class="mode-tab active" data-value="outline">创作大纲</div>
-                <div class="mode-tab" data-value="plot">创作剧情</div>
-                <div class="mode-tab" data-value="draft">创作正文</div>
+        <div class="mode-chapter-wrapper">
+            <div class="mode-selection">
+                <select id="writeMode" style="display: none;">
+                    <option value="outline">创作章节</option>
+                    <option value="plot">创作剧情</option>
+                    <option value="draft">创作正文</option>
+                </select>
+                <div class="mode-tabs">
+                    <div class="mode-tab active" data-value="outline">创作章节</div>
+                    <div class="mode-tab" data-value="plot">创作剧情</div>
+                    <div class="mode-tab" data-value="draft">创作正文</div>
+                </div>
+            </div>
+            <div class="chapter-selection">
+                <div class="select-wrapper">
+                    <select id="chapterSelect">
+                        <option value="1">第1章</option>
+                        <option value="2">第2章</option>
+                        <option value="3">第3章</option>
+                        <option value="4">第4章</option>
+                        <option value="5">第5章</option>
+                        <option value="6">第6章</option>
+                        <option value="7">第7章</option>
+                        <option value="8">第8章</option>
+                        <option value="9">第9章</option>
+                        <option value="10">第10章</option>
+                    </select>
+                </div>
             </div>
         </div>
         <div class="prompt-section">
@@ -40,9 +58,9 @@
                 <div class="dropdown-group">
                     <div class="select-wrapper" title="选择创作时的提示词">
                         <select>
-                            <option>新建大纲</option>
-                            <option>扩写大纲</option>
-                            <option>润色大纲</option>
+                            <option>新建章节</option>
+                            <option>扩写章节</option>
+                            <option>润色章节</option>
                         </select>
                     </div>
                     <div class="select-wrapper" title="设置AI创作时每个窗口的大小">
@@ -119,7 +137,7 @@
                 </div>
                 <div class="right-header">
                     <div class="column-header-wrapper">
-                        <span>大纲</span>
+                        <span>章节</span>
                         <button class="copy-btn" data-column="right">复制</button>
                     </div>
                 </div>

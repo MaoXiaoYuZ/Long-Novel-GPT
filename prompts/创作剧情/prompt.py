@@ -14,7 +14,7 @@ def main(model, user_prompt, **kwargs):
         kwargs['context_y'] = '参考**剧情**'
 
     if 'context_x' in kwargs and 'x' in kwargs and kwargs['context_x'] == kwargs['x']:
-        kwargs['context_x'] = '参考**大纲**'
+        kwargs['context_x'] = '参考**章节大纲**'
     
     for ret in base_main(model, dirname, user_prompt, **kwargs):
         # ret['text'] = format_plot(ret['text'])

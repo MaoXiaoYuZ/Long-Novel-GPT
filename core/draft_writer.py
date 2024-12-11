@@ -3,20 +3,16 @@ from core.writer import Writer
 
 from prompts.创作正文.prompt import main as prompt_draft
 class DraftWriter(Writer):
-    def __init__(self, xy_pairs, model=None, sub_model=None, x_chunk_length=500, y_chunk_length=1000):
-        super().__init__(xy_pairs, model, sub_model, x_chunk_length=x_chunk_length, y_chunk_length=y_chunk_length)
-
-    def auto_write(self):
-        yield KeyPointMsg(title='一键生成正文', subtitle='新建正文')
-        yield from self.write("新建正文")
-        
-        yield KeyPointMsg(title='一键生成正文', subtitle='扩写正文')
-        yield from self.write("扩写正文")
-        
-        yield KeyPointMsg(title='一键生成正文', subtitle='润色正文')
-        yield from self.write("润色正文")
+    def __init__(self, xy_pairs, global_context, model=None, sub_model=None, x_chunk_length=500, y_chunk_length=1000):
+        super().__init__(xy_pairs, global_context, model, sub_model, x_chunk_length=x_chunk_length, y_chunk_length=y_chunk_length)
 
     def write(self, user_prompt, pair_span=None):
+        target_chunk = self.get_chunk(pair_span=pair_span)
+        if not target_chunk.x_chunk:
+            raise Exception("需要提供剧情。")
+        if len(target_chunk.x_chunk) <= 5:
+            raise Exception("剧情不能少于5个字。")
+
         chunks = self.get_chunks(pair_span)
         
         yield from self.batch_write_apply_text(chunks, prompt_draft, user_prompt)

@@ -1,26 +1,21 @@
 {
 	"files": [
 		{
-			"path": "core/frontend.py",
+			"path": "frontend/js/prompt_section.js",
 			"bookmarks": [
 				{
-					"line": 127,
-					"column": 14,
-					"label": ""
-				},
-				{
-					"line": 223,
-					"column": 48,
+					"line": 131,
+					"column": 81,
 					"label": ""
 				}
 			]
 		},
 		{
-			"path": "core/frontend_utils.py",
+			"path": "frontend/js/content_section.js",
 			"bookmarks": [
 				{
-					"line": 61,
-					"column": 21,
+					"line": 284,
+					"column": 9,
 					"label": ""
 				}
 			]

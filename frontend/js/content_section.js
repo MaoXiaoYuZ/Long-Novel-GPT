@@ -103,7 +103,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 prompt_content: promptContent,
                 x_chunk_length: x_chunk_length,
                 y_chunk_length: y_chunk_length,
-                model_provider: modelProvider
+                model_provider: modelProvider,
+                global_context: writerMode !== 'draft' ? document.querySelector('.left-panel-input').value : ''
             };
             
             const response = await fetch(`${window._env_?.SERVER_URL}/write`, {
@@ -193,8 +194,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // 验证选择的chunks
         if (selectedChunks.length === 0) {
-            showToast('请先选择要创作的内容', 'warning');
-            return;
+            // 自动选择所有chunks
+            const allChunks = Array.from(document.querySelectorAll('.chunk-container'));
+            selectedChunks = allChunks;
+            allChunks.forEach(chunk => chunk.classList.add('selected'));
+            lastSelectedIndex = allChunks.length - 1;
+            
+            showToast('已自动选择所有内容', 'info');     
+            // showToast('请先选择要创作的内容', 'warning');
         }
 
         // 验证chunks连续性
@@ -286,6 +293,15 @@ document.addEventListener('DOMContentLoaded', () => {
             const revisionInput = chunk.querySelector('.revision-input');
             yInput.value = revisionInput.value;
             autoResizeTextarea(yInput);
+        } else {
+            // 在拒绝时检查x和y输入是否都为空
+            const xInput = chunk.querySelector('.x-input');
+            const yInput = chunk.querySelector('.y-input');
+            if (!xInput.value.trim() && !yInput.value.trim()) {
+                // 找到删除按钮并触发点击事件
+                const deleteBtn = chunk.querySelector('.delete-x-btn');
+                deleteBtn.click();
+            }
         }
     }
 
@@ -303,7 +319,8 @@ document.addEventListener('DOMContentLoaded', () => {
         document.addEventListener('click', (e) => {
             if (e.target.classList.contains('add-x-btn')) {
                 const currentChunk = e.target.closest('.chunk-container');
-                const newChunk = createNewChunk('', '', '');
+                const showX = !currentChunk.querySelector('.x-item').classList.contains('hidden');
+                const newChunk = createNewChunk('', '', '', false, showX);
                 currentChunk.parentNode.insertBefore(newChunk, currentChunk.nextSibling);
                 const newInput = newChunk.querySelector('.x-input');
                 newInput.focus();
