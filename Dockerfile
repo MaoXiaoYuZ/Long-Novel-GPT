@@ -33,6 +33,7 @@ COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 # Copy start script
 COPY start.sh .
 RUN chmod +x start.sh
+RUN chown root:root start.sh
 
 # EXPOSE $FRONTEND_PORT
 

@@ -1,6 +1,8 @@
 import httpx
 from openai import OpenAI
 from .chat_messages import ChatMessages
+from typing import Optional, Dict, Any
+
 
 # Pricing reference: https://openai.com/api/pricing/
 gpt_model_config = {
@@ -61,6 +63,10 @@ def stream_chat_with_gpt(messages, model='gpt-3.5-turbo-1106', response_json=Fal
             yield messages
     
     return messages
+
+
+
+
 
     
 if __name__ == '__main__':

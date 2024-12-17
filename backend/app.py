@@ -20,10 +20,36 @@ from core.draft_writer import DraftWriter
 from core.plot_writer import PlotWriter
 from core.outline_writer import OutlineWriter
 
+from flask_swagger_ui import get_swaggerui_blueprint
+
 
 # 添加配置
 BACKEND_HOST = os.environ.get('BACKEND_HOST', '0.0.0.0')
 BACKEND_PORT = int(os.environ.get('BACKEND_PORT', 7869))
+
+# 配置Swagger
+SWAGGER_URL = '/docs'  # URL for exposing Swagger UI (without trailing '/')
+API_URL = '/static/swagger.json'  # Our API url (can of course be a local resource)
+
+# Call factory function to create our blueprint
+swaggerui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL,
+    API_URL,
+    config={  # Swagger UI config overrides
+        'app_name': "Long-Novel-GPT API"
+    }
+)
+
+# Register blueprint at URL
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
+
+@app.route('/', methods=['GET'])
+def index():
+    return jsonify({
+        'status': 'ok',
+        'message': '服务正常运行中',
+        'timestamp': int(time.time())
+    }), 200
 
 
 @app.route('/health', methods=['GET'])
@@ -176,7 +202,7 @@ def call_write(writer_mode, chunk_list, global_context, chunk_span, prompt_conte
     init_novel_writer = load_novel_writer(writer_mode, list(novel_writer.xy_pairs), global_context, x_chunk_length, y_chunk_length, model_provider)
     
     # TODO: writer.write 应该保证无论什么prompt，都能够同时适应y为空和y有值地情况
-    # 换句话说，就是虽然可以单列出一个“新建正文”，但用扩写正文也能实现同样的效果。
+    # 换句话说，就是虽然可以单列出一个"新建正文"，但用扩写正文也能实现同样的效果。
     generator = novel_writer.write(prompt_content, pair_span=chunk_span) 
     
     prompt_outputs = []
@@ -215,7 +241,6 @@ def call_write(writer_mode, chunk_list, global_context, chunk_span, prompt_conte
 
     yield delta_wrapper(data_chunks, done=True)
 
-
 @app.route('/write', methods=['POST'])
 def write():
     data = request.json
@@ -233,17 +258,32 @@ def write():
             for result in call_write(writer_mode, list(chunk_list), global_context, chunk_span, prompt_content, x_chunk_length, y_chunk_length, model_provider):
                 yield f"data: {json.dumps(result)}\n\n"
         except Exception as e:
-            error_msg = f"创作出错：\n{str(e)}"
+            import traceback
+            error_trace = traceback.format_exc()
+            print(f"错误详情:\n{error_trace}")  # 打印完整错误堆栈
+            
+            # 记录请求参数
+            print(f"请求参数:\nwriter_mode: {writer_mode}\nchunk_span: {chunk_span}\n" 
+                  f"prompt_content: {prompt_content}\nx_chunk_length: {x_chunk_length}\n"
+                  f"y_chunk_length: {y_chunk_length}\nmodel_provider: {model_provider}")
+            
+            error_msg = f"创作出错：\n{str(e)}\n\n详细错误信息:\n{error_trace}"
             error_chunk_list = [[*e[:2], error_msg] for e in chunk_list[chunk_span[0]:chunk_span[1]]]
             
             error_data = {
                 "done": True,
                 "chunk_type": "init",
-                "chunk_list": error_chunk_list
+                "chunk_list": error_chunk_list,
+                "error": {
+                    "type": e.__class__.__name__,
+                    "message": str(e),
+                    "traceback": error_trace
+                }
             }
             yield f"data: {json.dumps(error_data)}\n\n"
             return
     return Response(generate(), mimetype='text/event-stream')
 
 if __name__ == '__main__':
-    app.run(host=BACKEND_HOST, port=BACKEND_PORT, debug=False) 
+    # app.run(host=BACKEND_HOST, port=BACKEND_PORT, debug=False) 
+    app.run(host='127.0.0.1', port=7860, debug=False) 

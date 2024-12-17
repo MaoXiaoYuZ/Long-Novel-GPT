@@ -38,9 +38,12 @@ def load_writer():
     else:
         return "No Writer instance to load"
 
-load_writer()
-writer.batch_map(prompt="", y_span=(0, len(writer.y)), chunk_length=1000, context_length=0, smooth=True)
-pass
+if os.path.exists(PICKLE_FILE):
+    load_writer()
+    if writer is not None:
+        writer.batch_map(prompt="", y_span=(0, len(writer.y)), chunk_length=1000, context_length=0, smooth=True)
+else:
+    print("No writer state file found. Please initialize writer first.")
 
 def initialize_writer(plot, text):
     global writer

@@ -1,0 +1,230 @@
+```xml
+<instructions>
+请根据以下步骤完成任务：
+
+根据故事大纲，分析每个角色的重要性和角色类型。
+故事大纲：{{story_outline}}
+
+1. 根据输入的角色信息，分析每个角色的重要性和角色类型。
+2. 分析角色之间的关系，确定:
+   - source: 关系起点角色
+   - target: 关系终点角色
+   - closeness: 亲密度(0-1)
+   - relationship_type: 关系类型(mentor/friend/colleague/antagonist等)
+   - explanation: 关系说明
+3. 输出json数组:
+   - relationships: 包含所有角色关系
+
+4. 确保关系网络完整且合理，体现故事主线和角色动机
+
+逻辑规划（无需在最终输出中展示）：
+
+根据三幕式结构和章节列表，分析每个角色的登场时机和作用:
+- 第一幕角色:主角及其亲密关系人物,反派的暗示
+- 第二幕角色:主要对手、盟友、导师等
+- 第三幕角色:最终对决相关人物
+
+
+
+根据世界观和社会背景,为每个角色和角色的关系设定:
+- 基于社会地位和职业，让角色和角色的关系符合社会背景
+- 成长背景和价值观决定角色和角色的关系
+- 与主角的关系定位，与其他角色的关系定位
+- 配角与配角的关系定位，要符合逻辑
+
+构建以主角为中心的关系网:
+- 亲密度(0-1)表示关系远近
+- 关系类型包括:
+  * 盟友/对手
+  * 导师/学生  
+  * 亲情/爱情
+  * 上下级/平级
+  * 信任/背叛
+
+构建以配角和配角的关系网:
+- 亲密度(0-1)表示关系远近
+- 关系类型包括:
+  * 盟友/对手
+  * 导师/学生  
+  * 亲情/爱情
+  * 上下级/平级
+  * 信任/背叛
+
+确保每个角色都有:
+- 和主角的关系
+- 和其他配角的关系（包括主角的家人、朋友、同事、对手等）
+- 角色的内在冲突
+- 角色的外在冲突
+- 符合麦基理论的人物弧光
+
+姓名：
+个性特征：
+外貌描述：
+与主角的关系：
+内在/外在矛盾：
+
+
+</instructions>
+
+<example>
+输入：
+姓名：name_1
+个性特征：personality_1
+外貌描述：appearance_1
+与主角的关系：relationship_1
+内在/外在矛盾：inner_outer_conflict_1
+
+
+输出：
+推理：
+
+让我们一步步分析角色之间的关系网络:
+
+1. 主要关系分析
+- 李明作为主角，是关系网的核心
+- 与小张、林老师等形成支持联盟
+- 与校长、王家长等形成对抗关系
+- 与辅导员、刘校友等形成指导关系
+
+2. 关系强度设定
+- 最亲密关系(0.8-1.0):亲密战友、挚友
+- 较亲密关系(0.6-0.8):良师益友、同事
+- 一般关系(0.4-0.6):普通同事、熟人
+- 疏远关系(0.2-0.4):对手、竞争者
+- 对立关系(0-0.2):敌对、冲突
+
+3. 关系类型分布
+- mentor: 辅导员、刘校友对李明
+- colleague: 林老师、张老师之间
+- antagonist: 王家长对小张、评委老师对李明
+- student-teacher: 陈同学对李明
+
+4. 配角间关系
+- 同事间:林老师与张老师的互助
+- 对立面:王家长与林老师的矛盾
+- 间接关联:通过主角连接的次要角色
+
+5. 关系动态变化
+- 随剧情发展，关系亲密度会变化
+- 对立关系可能转化为理解
+- 信任关系可能经受考验
+
+这样的关系网络设计:
+- 突出了主角的核心地位
+- 体现了人物间的复杂互动
+- 为剧情冲突提供了基础
+- 符合教育环境的真实性
+
+# 示例关系地图数据
+
+ "source": "李明",
+ "target": "小张", 
+ "closeness": 0.9, 
+ "relationship_type": "mentor",
+ "explanation": "亦师亦友\n互相成长",
+
+"source": "李明", 
+"target": "校长", 
+"closeness": 0.4, 
+"relationship_type": "colleague",
+"explanation": "职责冲突\n相互制衡",
+
+"source": "李明", 
+"target": "林老师", 
+"closeness": 0.7, 
+"relationship_type": "friend",
+"explanation": "志同道合\n共同进步",
+
+"source": "小张", 
+"target": "林老师", 
+"closeness": 0.6, 
+"relationship_type": "colleague",
+"explanation": "教学相长\n互相支持",
+
+"source": "校长", 
+"target": "张三", 
+"closeness": 0.2, 
+"relationship_type": "antagonist",
+"explanation": "对立冲突\n权力较量"
+
+</example>
+```
+
+<user>
+输入：
+
+姓名：{{name_1}}
+个性特征：{{personality_1}}
+外貌描述：{{appearance_1}}
+与主角的关系：{{relationship_1}}
+内在/外在矛盾：{{inner_outer_conflict_1}}
+
+姓名：{{name_2}}
+个性特征：{{personality_2}}
+外貌描述：{{appearance_2}}
+与主角的关系：{{relationship_2}}
+内在/外在矛盾：{{inner_outer_conflict_2}}
+
+姓名：{{name_3}}
+个性特征：{{personality_3}}
+外貌描述：{{appearance_3}}
+与主角的关系：{{relationship_3}}
+内在/外在矛盾：{{inner_outer_conflict_3}}
+
+姓名：{{name_4}}
+个性特征：{{personality_4}}
+外貌描述：{{appearance_4}}
+与主角的关系：{{relationship_4}}
+内在/外在矛盾：{{inner_outer_conflict_4}}
+
+姓名：{{name_5}}
+个性特征：{{personality_5}}
+外貌描述：{{appearance_5}}
+与主角的关系：{{relationship_5}}
+内在/外在矛盾：{{inner_outer_conflict_5}}
+
+姓名：{{name_6}}
+个性特征：{{personality_6}}
+外貌描述：{{appearance_6}}
+与主角的关系：{{relationship_6}}
+内在/外在矛盾：{{inner_outer_conflict_6}}
+
+姓名：{{name_7}}
+个性特征：{{personality_7}}
+外貌描述：{{appearance_7}}
+与主角的关系：{{relationship_7}}
+内在/外在矛盾：{{inner_outer_conflict_7}}
+
+姓名：{{name_8}}
+个性特征：{{personality_8}}
+外貌描述：{{appearance_8}}
+与主角的关系：{{relationship_8}}
+内在/外在矛盾：{{inner_outer_conflict_8}}
+
+姓名：{{name_9}}
+个性特征：{{personality_9}}
+外貌描述：{{appearance_9}}
+与主角的关系：{{relationship_9}}
+内在/外在矛盾：{{inner_outer_conflict_9}}
+
+姓名：{{name_10}}
+个性特征：{{personality_10}}
+外貌描述：{{appearance_10}}
+与主角的关系：{{relationship_10}}
+内在/外在矛盾：{{inner_outer_conflict_10}}
+
+姓名：{{name_11}}
+个性特征：{{personality_11}}
+外貌描述：{{appearance_11}}
+与主角的关系：{{relationship_11}}
+内在/外在矛盾：{{inner_outer_conflict_11}}
+
+姓名：{{name_12}}
+个性特征：{{personality_12}}
+外貌描述：{{appearance_12}}
+与主角的关系：{{relationship_12}}
+内在/外在矛盾：{{inner_outer_conflict_12}}
+
+根据与主角的关系推断角色之间的关系(配角到配角)
+let's think step by step, and then output the result in chinese.
+</user>

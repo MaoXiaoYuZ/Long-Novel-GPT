@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>《生活的转折点》角色关系图</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <style>
+        body {
+            font-family: "Songti SC", "SimSun", serif;
+            margin: 0;
+            padding: 0;
+            background-color: #fafafa;
+            overflow: hidden;
+            background-image: linear-gradient(to right bottom, #ffffff, #f8f9fa);
+        }
+        
+        .container {
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .link-label {
+            pointer-events: none;
+            opacity: 1;
+            transition: opacity 0.3s ease;
+        }
+        
+        .link-label-bg {
+            fill: rgba(255, 255, 255, 0.98);
+            stroke: #e0e0e0;
+            stroke-width: 1px;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+        
+        .link-label-text {
+            font-size: 12px;
+            fill: #4a4a4a;
+            text-anchor: middle;
+            dominant-baseline: middle;
+            font-weight: 500;
+        }
+        
+        .node {
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+        }
+        
+        .node:hover {
+            filter: drop-shadow(0 4px 8px rgba(0,0,0,0.2));
+            transform: scale(1.1);
+        }
+        
+        .node.highlighted {
+            filter: drop-shadow(0 6px 12px rgba(0,0,0,0.3));
+            transform: scale(1.15);
+        }
+        
+        .link {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            fill: none;
+            opacity: 0.8;
+        }
+        
+        .link.dimmed {
+            opacity: 0.15;
+        }
+        
+        .node-label {
+            font-size: 14px;
+            font-weight: bold;
+            pointer-events: none;
+            text-anchor: middle;
+            text-shadow: 
+                -1px -1px 0 white,
+                1px -1px 0 white,
+                -1px 1px 0 white,
+                1px 1px 0 white,
+                0 0 8px rgba(255,255,255,0.8);
+            transition: all 0.3s ease;
+        }
+        
+        .node-group:hover .node-label {
+            font-size: 16px;
+        }
+        
+        .conflict-box {
+            fill: rgba(255, 255, 255, 0.98);
+            stroke: #F39C12;
+            stroke-width: 1px;
+            rx: 8;
+            ry: 8;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+            max-width: 200px;
+            word-wrap: break-word;
+        }
+        
+        .conflict-text {
+            font-size: 12px;
+            fill: #2C3E50;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            max-width: 180px;
+        }
+        
+        .node-group:hover .conflict-box,
+        .node-group:hover .conflict-text {
+            opacity: 1;
+            transform: translateY(-5px);
+        }
+        
+        .personality-box {
+            fill: rgba(235, 245, 251, 0.98);
+            stroke: #AED6F1;
+            stroke-width: 1px;
+            rx: 8;
+            ry: 8;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.1));
+            max-width: 200px;
+            word-wrap: break-word;
+        }
+        
+        .personality-text {
+            font-size: 12px;
+            fill: #2C3E50;
+            opacity: 0;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+            max-width: 180px;
+        }
+        
+        .node-group:hover .personality-box,
+        .node-group:hover .personality-text {
+            opacity: 1;
+            transform: translateY(5px);
+        }
+        
+        .relationship-text {
+            font-size: 11px;
+            fill: #34495E;
+            pointer-events: none;
+            font-weight: 500;
+        }
+        
+        .legend {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background-color: rgba(255, 255, 255, 0.98);
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            z-index: 1000;
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+        
+        .legend:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+        }
+        
+        .legend h3 {
+            margin: 0 0 15px 0;
+            color: #2C3E50;
+            font-size: 14px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+        }
+        
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            font-size: 12px;
+            color: #34495E;
+            transition: all 0.2s ease;
+        }
+        
+        .legend-item:hover {
+            transform: translateX(2px);
+        }
+        
+        .legend-color {
+            width: 24px;
+            height: 24px;
+            margin-right: 12px;
+            border-radius: 6px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+        
+        .legend-item:hover .legend-color {
+            transform: scale(1.1);
+            box-shadow: 0 3px 6px rgba(0,0,0,0.15);
+        }
+        
+        .title {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            color: #2C3E50;
+            font-size: 24px;
+            font-weight: bold;
+            z-index: 1000;
+            background-color: rgba(255,255,255,0.98);
+            padding: 15px 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            backdrop-filter: blur(8px);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0,0,0,0.05);
+            letter-spacing: 1px;
+        }
+        
+        .title:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0,0,0,0.12);
+        }
+
+        /* 添加连接线动画 */
+        .connection-line {
+            stroke-dasharray: 5;
+            animation: dash 20s linear infinite;
+            pointer-events: none;
+        }
+
+        @keyframes dash {
+            from {
+                stroke-dashoffset: 1000;
+            }
+            to {
+                stroke-dashoffset: 0;
+            }
+        }
+
+        /* 添加节点闪光效果 */
+        .node-highlight {
+            fill: none;
+            stroke: white;
+            stroke-width: 2;
+            stroke-dasharray: 100;
+            stroke-dashoffset: 100;
+            animation: highlight 2s ease-out infinite;
+        }
+
+        @keyframes highlight {
+            from {
+                stroke-dashoffset: 100;
+            }
+            to {
+                stroke-dashoffset: -100;
+            }
+        }
+
+        /* 优化文本溢出处理 */
+        .text-content {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: -webkit-box;
+            -webkit-line-clamp: 3;
+            -webkit-box-orient: vertical;
+            max-height: 4.5em;
+        }
+
+        /* 添加响应式设计 */
+        @media (max-width: 768px) {
+            .legend {
+                top: auto;
+                bottom: 20px;
+                right: 20px;
+                transform: scale(0.9);
+            }
+            
+            .title {
+                font-size: 20px;
+                padding: 12px 20px;
+            }
+        }
+
+        .explanation-text {
+            font-size: 11px;
+            fill: #666;
+            opacity: 0.9;
+        }
+
+        .explanation-text tspan {
+            text-anchor: middle;
+        }
+    </style>
+</head>
+<body>
+    <div class="title">《生活的转折点》角色关系图</div>
+    <div class="container">
+        <div class="legend">
+            <h3>图例说明</h3>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #3498DB;"></div>
+                <span>正面角色</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #95A5A6;"></div>
+                <span>中立角色</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #E74C3C;"></div>
+                <span>反面角色</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #27AE60;"></div>
+                <span>密切关系</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #F1C40F;"></div>
+                <span>一般关系</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background-color: #C0392B;"></div>
+                <span>紧张关系</span>
+            </div>
+        </div>
+    </div>
+    <script src="relationship_chart.js"></script>
+</body>
+</html> 

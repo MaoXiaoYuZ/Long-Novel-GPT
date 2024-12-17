@@ -1,0 +1,218 @@
+```xml
+<instructions>
+请根据以下步骤完成任务：
+
+根据故事大纲，分析每个角色的重要性和角色类型。
+故事大纲：{{story_outline}}
+
+1. 根据输入的角色信息，分析每个角色的重要性和角色类型。
+2. 确定每个角色的基本属性，包括:
+   - name: 角色名称
+   - gender: 性别
+   - importance: 重要性(1-5)
+   - alignment: 立场(good/neutral/evil)
+   - role_type: 角色类型(protagonist/supporting/antagonist)
+   - inner_outer_conflict: 内外矛盾
+   - personality: 性格特征
+4. 输出json数组:
+   - characters: 包含所有角色属性
+
+5. 确保关系网络完整且合理，体现故事主线和角色动机
+
+逻辑规划（无需在最终输出中展示）：
+
+根据三幕式结构和章节列表，分析每个角色的登场时机和作用:
+- 第一幕角色:主角及其亲密关系人物,反派的暗示
+- 第二幕角色:主要对手、盟友、导师等
+- 第三幕角色:最终对决相关人物
+
+设定角色重要性等级:
+- 5级:主角、主要反派
+- 4级:重要盟友、对手
+- 3级:次要但关键的角色
+- 2级:情节推动者
+- 1级:背景衬托角色
+
+根据三幕式大纲,为每个角色设定:
+- 性别
+- 重要性
+- 立场
+- 角色类型
+- 角色个性
+- 符合麦基理论的人物弧光
+
+
+确保每个角色:
+- 和主角的关系
+- 角色的内在冲突
+- 角色的外在冲突
+- 符合麦基理论的人物弧光
+
+
+
+</instructions>
+
+<example>
+姓名：name_1
+个性特征：personality_1
+外貌描述：appearance_1
+与主角的关系：relationship_1
+内在/外在矛盾：inner_outer_conflict_1
+......
+
+输出：
+推理：
+
+让我们一步步分析角色关系:
+
+1. 主角李明
+- 作为故事主角，重要性为5级
+- 性格积极向上，对教育充满热情，属于good阵营
+- 角色类型为protagonist
+- 内外矛盾体现在职业理想与现实压力的对抗
+
+2. 重要配角分析
+- 小张: 作为李明的好友和同事，重要性4级，good阵营，supporting角色
+- 校长: 作为上级，重要性3级，neutral阵营，supporting角色
+- 林老师: 经验丰富的同事，重要性3级，good阵营，supporting角色
+- 王家长: 对抗角色，重要性2级，evil阵营，antagonist角色
+
+3. 次要角色分析
+- 张老师、售楼小姐等: 重要性2级，主要是supporting角色
+- 评委老师、辅导员等: 重要性1-2级，属于情节推动者
+
+4. 角色立场分布
+- Good阵营: 李明、小张、林老师等支持教育理想的角色
+- Neutral阵营: 校长等注重实际的角色
+- Evil阵营: 王家长等对抗教育理念的角色
+
+5. 内外矛盾设定
+- 主要角色都存在理想与现实的矛盾
+- 配角的矛盾补充和映衬主角的成长
+
+这样的角色设定能够:
+- 突出主角的成长历程
+- 形成鲜明的人物对立
+- 体现教育主题的多面性
+
+"name": "李明", 
+"gender": "male", 
+"importance": 5, 
+"alignment": "good", 
+"role_type": "protagonist",
+"inner_outer_conflict": "内在挣扎\n理想与现实", 
+"personality": "乐观积极",
+
+"name": "小张", 
+"gender": "male", 
+"importance": 3, 
+"alignment": "good", 
+"role_type": "supporting",
+"inner_outer_conflict": "自我怀疑\n成长的困惑", 
+"personality": "内向细心",
+
+"name": "校长", 
+"gender": "male", 
+"importance": 4, 
+"alignment": "neutral", 
+"role_type": "supporting",
+"inner_outer_conflict": "权力与责任", 
+"personality": "严谨务实",
+
+"name": "林老师", 
+"gender": "female", 
+"importance": 2, 
+"alignment": "good", 
+"role_type": "supporting",
+"inner_outer_conflict": "工作与家庭\n的平衡", 
+"personality": "耐心友好",
+
+"name": "张三", 
+"gender": "male", 
+"importance": 1, 
+"alignment": "evil", 
+"role_type": "antagonist",
+"inner_outer_conflict": "野心与道德\n的矛盾", 
+"personality": "狡黠多疑"
+
+</example>
+```
+
+<user>
+输入：
+
+姓名：{{name_1}}
+个性特征：{{personality_1}}
+外貌描述：{{appearance_1}}
+与主角的关系：{{relationship_1}}
+内在/外在矛盾：{{inner_outer_conflict_1}}
+
+姓名：{{name_2}}
+个性特征：{{personality_2}}
+外貌描述：{{appearance_2}}
+与主角的关系：{{relationship_2}}
+内在/外在矛盾：{{inner_outer_conflict_2}}
+
+姓名：{{name_3}}
+个性特征：{{personality_3}}
+外貌描述：{{appearance_3}}
+与主角的关系：{{relationship_3}}
+内在/外在矛盾：{{inner_outer_conflict_3}}
+
+姓名：{{name_4}}
+个性特征：{{personality_4}}
+外貌描述：{{appearance_4}}
+与主角的关系：{{relationship_4}}
+内在/外在矛盾：{{inner_outer_conflict_4}}
+
+姓名：{{name_5}}
+个性特征：{{personality_5}}
+外貌描述：{{appearance_5}}
+与主角的关系：{{relationship_5}}
+内在/外在矛盾：{{inner_outer_conflict_5}}
+
+姓名：{{name_6}}
+个性特征：{{personality_6}}
+外貌描述：{{appearance_6}}
+与主角的关系：{{relationship_6}}
+内在/外在矛盾：{{inner_outer_conflict_6}}
+
+姓名：{{name_7}}
+个性特征：{{personality_7}}
+外貌描述：{{appearance_7}}
+与主角的关系：{{relationship_7}}
+内在/外在矛盾：{{inner_outer_conflict_7}}
+
+姓名：{{name_8}}
+个性特征：{{personality_8}}
+外貌描述：{{appearance_8}}
+与主角的关系：{{relationship_8}}
+内在/外在矛盾：{{inner_outer_conflict_8}}
+
+姓名：{{name_9}}
+个性特征：{{personality_9}}
+外貌描述：{{appearance_9}}
+与主角的关系：{{relationship_9}}
+内在/外在矛盾：{{inner_outer_conflict_9}}
+
+姓名：{{name_10}}
+个性特征：{{personality_10}}
+外貌描述：{{appearance_10}}
+与主角的关系：{{relationship_10}}
+内在/外在矛盾：{{inner_outer_conflict_10}}
+
+姓名：{{name_11}}
+个性特征：{{personality_11}}
+外貌描述：{{appearance_11}}
+与主角的关系：{{relationship_11}}
+内在/外在矛盾：{{inner_outer_conflict_11}}
+
+姓名：{{name_12}}
+个性特征：{{personality_12}}
+外貌描述：{{appearance_12}}
+与主角的关系：{{relationship_12}}
+内在/外在矛盾：{{inner_outer_conflict_12}}
+
+根据大纲推理每个角色的重要性、角色类型、角色个性、角色弧光
+let's think step by step, and then output the result in chinese.
+</user>

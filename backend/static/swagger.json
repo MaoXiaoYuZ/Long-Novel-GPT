@@ -1,0 +1,195 @@
+{
+    "swagger": "2.0",
+    "info": {
+      "title": "Long-Novel-GPT API",
+      "description": "AI一键生成长篇小说的API接口文档",
+      "version": "1.0.0"
+    },
+    "paths": {
+      "/": {
+        "get": {
+          "summary": "服务状态检查",
+          "description": "检查服务是否正常运行",
+          "responses": {
+            "200": {
+              "description": "服务正常运行",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "example": "ok"
+                  },
+                  "message": {
+                    "type": "string",
+                    "example": "服务正常运行中"
+                  },
+                  "timestamp": {
+                    "type": "integer",
+                    "example": 1709529600
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/health": {
+        "get": {
+          "summary": "健康检查接口",
+          "description": "检查服务的健康状态",
+          "responses": {
+            "200": {
+              "description": "服务健康状态",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "example": "healthy"
+                  },
+                  "timestamp": {
+                    "type": "integer",
+                    "example": 1709529600
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/prompts": {
+        "get": {
+          "summary": "获取提示词列表",
+          "description": "获取所有可用的提示词模板",
+          "responses": {
+            "200": {
+              "description": "提示词列表",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "outline": {
+                    "type": "object",
+                    "properties": {
+                      "prompt_names": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "example": ["新建大纲", "扩写大纲", "润色大纲"]
+                      }
+                    }
+                  },
+                  "plot": {
+                    "type": "object",
+                    "properties": {
+                      "prompt_names": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "example": ["新建剧情", "扩写剧情"]
+                      }
+                    }
+                  },
+                  "draft": {
+                    "type": "object",
+                    "properties": {
+                      "prompt_names": {
+                        "type": "array",
+                        "items": {
+                          "type": "string"
+                        },
+                        "example": ["创作正文", "修改正文"]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "/write": {
+        "post": {
+          "summary": "AI写作接口",
+          "description": "根据提供的参数生成小说内容",
+          "parameters": [
+            {
+              "in": "body",
+              "name": "body",
+              "description": "写作请求参数",
+              "required": true,
+              "schema": {
+                "type": "object",
+                "required": ["writer_mode", "chunk_list", "chunk_span", "prompt_content", "x_chunk_length", "y_chunk_length", "model_provider"],
+                "properties": {
+                  "writer_mode": {
+                    "type": "string",
+                    "enum": ["draft", "outline", "chapters", "plot"],
+                    "description": "写作模式：大纲、剧情、章节或正文"
+                  },
+                  "chunk_list": {
+                    "type": "array",
+                    "description": "文本块列表",
+                    "items": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    }
+                  },
+                  "chunk_span": {
+                    "type": "array",
+                    "description": "需要处理的文本块范围",
+                    "items": {
+                      "type": "integer"
+                    },
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "prompt_content": {
+                    "type": "string",
+                    "description": "提示词内容"
+                  },
+                  "x_chunk_length": {
+                    "type": "integer",
+                    "description": "输入文本块的最大长度"
+                  },
+                  "y_chunk_length": {
+                    "type": "integer",
+                    "description": "输出文本块的最大长度"
+                  },
+                  "model_provider": {
+                    "type": "string",
+                    "description": "使用的AI模型提供商",
+                    "enum": ["zhipuai", "gpt", "others", "wenxin", "doubao"]
+                  }
+                }
+              }
+            }
+          ],
+          "responses": {
+            "200": {
+              "description": "写作结果流(Server-Sent Events)",
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "done": {
+                    "type": "boolean"
+                  },
+                  "chunk_type": {
+                    "type": "string",
+                    "enum": ["init", "delta"]
+                  },
+                  "chunk_list": {
+                    "type": "array"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
