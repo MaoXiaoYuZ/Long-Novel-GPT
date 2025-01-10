@@ -11,7 +11,7 @@ demo/config.py
 **/data.jsonl
 *.pickle
 .vscode/sftp.json
-tests/*
+data/*
 todo.md
 states.json
 "states copy.json"

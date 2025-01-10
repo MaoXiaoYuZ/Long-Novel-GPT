@@ -15,6 +15,9 @@ RUN pip install -r requirements.txt
 # Copy backend files
 COPY config.py .
 COPY backend/app.py .
+COPY backend/setting.py .
+COPY backend/summary.py .
+COPY backend/backend_utils.py .
 COPY backend/healthcheck.py .
 COPY core/ ./core/
 COPY llm_api/ ./llm_api/

@@ -50,7 +50,7 @@ def parse_input_keys(text):
     # Use regex to find the input keys line and parse keys
     match = re.search(r'//\s*输入：(.*?)(?:\n|$)', text)
     if not match:
-        raise ValueError("No input keys found")
+        return []
         
     keys_str = match.group(1).strip()
         
@@ -63,22 +63,22 @@ def main(model, dirname, user_prompt_text, **kwargs):
     system_prompt = parse_prompt(load_prompt(dirname, "system_prompt"), **kwargs)
     
     load_from_file_flag = False
-    try:
+    if os.path.exists(os.path.join(dirname, user_prompt_text)):
         user_prompt_text = load_prompt(dirname, user_prompt_text)
         load_from_file_flag = True
-    except:
+    else:
         if not re.search(r'^user:\n', user_prompt_text, re.MULTILINE):
             user_prompt_text = f"user:\n{user_prompt_text}"
         
     user_prompt = parse_prompt(user_prompt_text, **kwargs)
     
-    try:
-        context_input_keys = parse_input_keys(user_prompt_text)
-        context_kwargs = {k: kwargs[k] for k in context_input_keys}
-        assert all(context_kwargs.values()), "Missing required context keys"
-    except:
+    context_input_keys = parse_input_keys(user_prompt_text)
+    if not context_input_keys:
         assert not load_from_file_flag, "从本地文件加载Prompt时，本地文件中注释必须指明输入！"
         context_kwargs = kwargs
+    else:
+        context_kwargs = {k: kwargs[k] for k in context_input_keys}
+        assert all(context_kwargs.values()), "Missing required context keys"
     
     context_prompt = parse_prompt(load_prompt(dirname, "context_prompt"), **context_kwargs)
     

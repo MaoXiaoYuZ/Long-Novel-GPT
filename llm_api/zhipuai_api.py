@@ -13,19 +13,19 @@ from .chat_messages import ChatMessages
 
 zhipuai_model_config = {
     "glm-4-plus": {
-        "Pricing": (0.05/1000, 0.05/1000),
+        "Pricing": (0.05, 0.05),
         "currency_symbol": '￥',
     },
     "glm-4-air": {
-        "Pricing": (0.001/1000, 0.001/1000),
+        "Pricing": (0.001, 0.001),
         "currency_symbol": '￥',
     },
     "glm-4-flashx": {
-        "Pricing": (0.0001/1000, 0.0001/1000),
+        "Pricing": (0.0001, 0.0001),
         "currency_symbol": '￥',
     },
     "glm-4-flash": {
-        "Pricing": (0/1000, 0/1000),
+        "Pricing": (0, 0),
         "currency_symbol": '￥',
     },
 }

@@ -1,6 +1,7 @@
 import difflib
 import json
 import yaml
+import chardet
 from jinja2 import Environment, FileSystemLoader  
 
 import re
@@ -102,9 +103,21 @@ def load_yaml(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:  
         return yaml.safe_load(file)  
 
-def load_text(file_path):
-    with open(file_path, 'r', encoding='utf-8') as file:
-        return file.read()
+def load_text(file_path, read_size=None): 
+    # Read the raw bytes first
+    with open(file_path, 'rb') as file:
+        raw_data = file.read(read_size)
+    
+    # Detect the encoding
+    result = chardet.detect(raw_data[:10000])
+    encoding = result['encoding'] or 'utf-8'  # Fallback to utf-8 if detection fails
+    
+    # Decode the content with detected encoding
+    try:
+        return raw_data.decode(encoding, errors='ignore')
+    except UnicodeDecodeError:
+        # Fallback to utf-8 if the detected encoding fails
+        return raw_data.decode('utf-8', errors='ignore')
 
 def load_jinja2_template(file_path):
     env = Environment(loader=FileSystemLoader(os.path.dirname(file_path)))

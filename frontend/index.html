@@ -10,25 +10,32 @@
     <link rel="stylesheet" href="styles/chat_messages.css">
     <link rel="stylesheet" href="styles/examples.css">
     <link rel="stylesheet" href="styles/guide.css">
+    <link rel="stylesheet" href="styles/novel_select.css">
+    <link rel="stylesheet" href="styles/settings.css">
+    <link rel="stylesheet" href="styles/bottom_bar.css">
     <script>window._env_ = window._env_ || {}; window._env_.SERVER_URL = "/api" || "http://127.0.0.1:7869";</script>
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Long-Novel-GPT V2.1</h1>
+            <h1>Long-Novel-GPT V2.2</h1>
             <h2>AI一键生成长篇小说</h2>
         </header>
         <div class="mode-chapter-wrapper">
             <div class="mode-selection">
                 <select id="writeMode" style="display: none;">
+                    <option value="novel">选择小说</option>
                     <option value="outline">创作章节</option>
                     <option value="plot">创作剧情</option>
                     <option value="draft">创作正文</option>
+                    <option value="settings">设置</option>
                 </select>
                 <div class="mode-tabs">
+                    <div class="mode-tab" data-value="novel">选择小说</div>
                     <div class="mode-tab active" data-value="outline">创作章节</div>
                     <div class="mode-tab" data-value="plot">创作剧情</div>
                     <div class="mode-tab" data-value="draft">创作正文</div>
+                    <div class="mode-tab" data-value="settings">设置</div>
                 </div>
             </div>
             <div class="chapter-selection">
@@ -68,15 +75,6 @@
                             <!-- Window size options will be populated by JavaScript -->
                         </select>
                     </div>
-                    <div class="select-wrapper" title="选择使用的AI模型">
-                        <select class="model-select">
-                            <option value="zhipuai">GLM4(智谱)</option>
-                            <option value="gpt">GPT4(OpenAI)</option>
-                            <option value="others">Claude3.5(Anthropic)</option>
-                            <option value="wenxin">文心4(百度)</option>
-                            <option value="doubao">豆包Pro(字节跳动)</option>
-                        </select>
-                    </div>
                 </div>
             </div>
             <div class="prompt-input">
@@ -111,8 +109,8 @@
                 <div class="guide-item">
                     <h4>注意事项</h4>
                     <ul>
-                        <li>在线Demo限制了最大线程数，<span class="key-combo">只有前5个窗口</span>可以同时创作</li>
-                        <li>超过5个的窗口不会输出，但你仍然可以单独选中它们再次创作</li>
+                        <li>在线Demo限制了最大线程数，<span class="key-combo">只有5个窗口</span>可以同时创作</li>
+                        <li>在设置中可以更改模型</li>
                     </ul>
                 </div>
             </div>

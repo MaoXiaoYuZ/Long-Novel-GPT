@@ -3,7 +3,6 @@ import numpy as np
 import bisect
 from dataclasses import asdict, dataclass
 
-from config import MAX_THREAD_NUM
 from llm_api import ModelConfig
 from prompts.对齐剧情和正文 import prompt as match_plot_and_text
 from prompts.审阅.prompt import main as prompt_review
@@ -95,7 +94,7 @@ class Chunk(dict):
     
     
 class Writer:
-    def __init__(self, xy_pairs, global_context=None, model:ModelConfig=None, sub_model:ModelConfig=None, x_chunk_length=1000, y_chunk_length=1000):
+    def __init__(self, xy_pairs, global_context=None, model:ModelConfig=None, sub_model:ModelConfig=None, x_chunk_length=1000, y_chunk_length=1000, max_thread_num=5):
         self.xy_pairs = xy_pairs
         self.global_context = global_context or {}
 
@@ -108,6 +107,8 @@ class Writer:
         # x_chunk_length是指一次prompt调用时输入的x长度（由batch_map函数控制）, 此参数会影响到映射到y的扩写率（即：LLM的输出窗口长度/x_chunk_length）
         # 同时，x_chunk_length会影响到map的chunk大小，map的pair大小主要由x_chunk_length决定（具体来说，由update_map函数控制，为x_chunk_length//2)
         # y_chunk_length对pair大小的影响较少（因为映射是一对多）
+
+        self.max_thread_num = max_thread_num    # 使得可以单独控制某个chunk变量的线程数，这在同时运行多个Writer变量时有用
     
     @property
     def x(self):    # TODO: 考虑x经常访问的情况
@@ -298,24 +299,29 @@ class Writer:
     # TODO: batch_yield 可以考虑输入生成器，而不是函数及参数 
     def batch_yield(self, generators, chunks, prompt_name=None):
         # TODO: 后续考虑只输出new_chunks, 不必重复输出chunks
-        if len(generators) > MAX_THREAD_NUM:
-            generators = generators[:MAX_THREAD_NUM]
-            
+
         # Process all pairs with the prompt and yield intermediate results
         results = [None] * len(generators)
         yields = [None] * len(generators)
         finished = [False] * len(generators)
         first_iter_flag = True
         while True:
+            co_num = 0
             for i, gen in enumerate(generators):
                 if finished[i]:
                     continue
+
                 try:
+                    co_num += 1
                     yield_value = next(gen)
                     yields[i] = (yield_value, chunks[i])    # TODO: yield 带上chunk是为了配合前端
                 except StopIteration as e:
                     results[i] = e.value
                     finished[i] = True
+                    if yields[i] is None: yields[i] = (None, chunks[i])
+                
+                if co_num >= self.max_thread_num:
+                        break
             
             if all(finished):
                 break
@@ -324,7 +330,7 @@ class Writer:
                 yield (kp_msg := KeyPointMsg(prompt_name=prompt_name))
                 first_iter_flag = False
 
-            yield [e for e in yields if e is not None]  # 如果是yield的值，那必定为tuple
+            yield yields  # 如果是yield的值，那必定为tuple
 
         if not first_iter_flag and prompt_name is not None:
             yield kp_msg.set_finished()
@@ -416,7 +422,14 @@ class Writer:
             **prompt_kwargs
         )
 
-        return chunk.edit(y_chunk=result['text'])
+        # 为了在V2.2版本兼容summary_prompt, 后续text_key这种设计会舍弃
+        update_dict = {}
+        if 'text_key' in result:
+            update_dict[result['text_key']] = result['text']
+        else:
+            update_dict['y_chunk'] = result['text']
+
+        return chunk.edit(**update_dict)
     
     # 目前review(审阅)的评分机制暂未实装
     def review_text(self, chunk:Chunk, prompt_name, model=None):
@@ -496,7 +509,7 @@ class Writer:
     def batch_write_apply_text(self, chunks, prompt_main, user_prompt_text):
         new_chunks = yield from self.batch_yield(
             [self.write_text(e, prompt_main, user_prompt_text) for e in chunks], 
-            chunks, prompt_name=user_prompt_text)
+            chunks, prompt_name='创作文本')
         
         results = yield from self.batch_map_text(new_chunks)
         new_chunks2 = [e[0] for e in results]

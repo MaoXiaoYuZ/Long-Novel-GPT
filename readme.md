@@ -31,38 +31,21 @@ Long-Novel-GPT是一个基于GPT等大语言模型的长篇小说生成器。它
 
 <h2 id="更新日志">📅 更新日志</h2>
 
-### 🎉 Long-Novel-GPT 2.1 更新（12月13日最新）
+### 🎉 Long-Novel-GPT 2.2 更新（1月9日最新）
 - 在线演示：[Long-Novel-GPT Demo](http://14.103.180.212/)
-- 支持创作章节
+- **支持导入小说，在已有的小说基础上进行改写**
+- 支持在**设置**中选择模型
+- 支持在创作时实时**显示调用费用**
+
+<p align="center">
+  <img src="assets/book-select.jpg" alt="支持在已有的小说基础上进行改写" width="600"/>
+</p>
+
+### 🎉 Long-Novel-GPT 2.1 更新（12月13日）
+- 支持选择和创作章节
 
 ### 🎉 Long-Novel-GPT 2.0 更新（12月4日）
 - 提供全新的UI界面
-
-### 🎉 Long-Novel-GPT 1.10 更新（11月28日）
-- 在创作时支持单独对选中的段落进行重新创作（通过引用文本）
-- 大纲、章节、正文的生成Prompt得到了优化
-
-
-### 🎉 Long-Novel-GPT 1.9 更新（11月16日）
-- 对于大纲、章节、正文分别内置了三种Prompt可供选择：新建、扩写、润色
-- 支持输入自己的Prompt
-- Prompt预览的交互逻辑更好了
-- 支持一键生成，将自动帮你进行全部大纲、章节、正文的生成
-- 新增支持智谱GLM模型
-
-
-### 🎉 Long-Novel-GPT 1.8 更新（11月1日）
-- 新增支持多种大语言模型：
-  - OpenAI系列: o1-preivew、o1-mini、gpt4o 等
-  - Claude系列: Claude-3.5-Sonnet 等
-  - 文心一言: ERNIE-4.0、ERNIE-3.5、ERNIE-Novel
-  - 豆包: doubao-lite/pro系列
-  - 支持任何兼容OpenAI接口的自定义模型
-- 优化了生成界面和用户体验
-
-### 🎉 Long-Novel-GPT 1.7 更新（10月29日）
-
-- 提供了一个在线Demo，支持从一句话创意直接生成全书。
 
 
 ### 🔮 后续更新计划
@@ -129,10 +112,10 @@ docker run -p 80:80 --env-file .env -d --add-host=host.docker.internal:host-gate
 例如
 ```
 # 这里GPT_BASE_URL格式只提供参考，主要是替换localhost或127.0.0.1
-GPT_BASE_URL=http://host.docker.internal:7777/v1
-GPT_API_KEY=you_api_key
-GPT_DEFAULT_MODEL=model_name1
-GPT_DEFAULT_SUB_MODEL=model_name2
+# 可用的模型名可以填1个或多个，用英文逗号分隔
+LOCAL_BASE_URL=host.docker.internal:7777/v1
+LOCAL_API_KEY=you_api_key
+LOCAL_AVAILABLE_MODELS=model_name1,model_name2
 ```
 
 <h2 id="demo使用指南">🖥️ Demo 使用指南</h2>

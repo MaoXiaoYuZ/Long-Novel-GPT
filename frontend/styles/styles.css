@@ -496,7 +496,7 @@ header h2 {
 
 .chapter-selection {
     position: absolute;
-    left: calc(50% + 200px);
+    left: calc(75%);
     transition: opacity 0.3s ease;
 }
 

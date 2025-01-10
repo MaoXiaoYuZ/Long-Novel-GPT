@@ -10,3 +10,4 @@ zhipuai
 flask
 flask-cors
 numpy
+chardet

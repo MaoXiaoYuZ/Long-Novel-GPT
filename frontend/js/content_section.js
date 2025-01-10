@@ -1,4 +1,4 @@
-import { autoResizeTextarea, createNewChunk, updateChunksContent, showToast } from './utils.js';
+import { autoResizeTextarea, createNewChunk, updateChunksContent, showToast, stopStream, showBottomBar, hideBottomBar, formatCostDisplay } from './utils.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const chunkContainer = document.getElementById('chunkContainer');
@@ -8,6 +8,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let isWriting = false;
     let originalChunksData = null;
     let currentController = null;
+    let currentStreamId = null;
     let currentMode = 'outline';
 
     function handleChunkSelection(e) {
@@ -80,9 +81,11 @@ document.addEventListener('DOMContentLoaded', () => {
             // 如果存在之前的controller，先中止它
             if (currentController) {
                 currentController.abort();
+                await stopStream(currentStreamId);
             }
             
             currentController = new AbortController();
+            currentStreamId = null;
             
             // Get writer mode from the select element
             const writerMode = document.getElementById('writeMode').value;
@@ -93,8 +96,8 @@ document.addEventListener('DOMContentLoaded', () => {
             const windowSizeStr = document.querySelector('.context-window-select').value;
             const { x: x_chunk_length, y: y_chunk_length } = JSON.parse(windowSizeStr);
             
-            // Get selected model provider
-            const modelProvider = document.querySelector('.model-select').value;
+            // Get selected model provider            
+            const settings = JSON.parse(localStorage.getItem('settings'));
             
             const requestData = {
                 writer_mode: writerMode,
@@ -103,8 +106,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 prompt_content: promptContent,
                 x_chunk_length: x_chunk_length,
                 y_chunk_length: y_chunk_length,
-                model_provider: modelProvider,
-                global_context: writerMode !== 'draft' ? document.querySelector('.left-panel-input').value : ''
+                main_model: settings.MAIN_MODEL,
+                sub_model: settings.SUB_MODEL,
+                global_context: writerMode !== 'draft' ? document.querySelector('.left-panel-input').value : '',
+                settings: {
+                    MAX_THREAD_NUM: settings.MAX_THREAD_NUM,
+                }
             };
             
             const response = await fetch(`${window._env_?.SERVER_URL}/write`, {
@@ -134,6 +141,13 @@ document.addEventListener('DOMContentLoaded', () => {
                         if (line.startsWith('data: ')) {
                             try {
                                 const data = JSON.parse(line.slice(6));
+                                
+                                // Store stream ID if received
+                                if (data.stream_id) {
+                                    currentStreamId = data.stream_id;
+                                    continue;
+                                }
+                                
                                 // 处理delta更新
                                 if (data.chunk_type === 'delta' && prevChunks) {
                                     const updatedChunks = data.chunk_list.map((chunk, i) => {
@@ -151,6 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     buffer = lines[0] || '';
                 } catch (error) {
                     if (error.name === 'AbortError') {
+                        await stopStream(currentStreamId);
                         throw error;
                     }
                     console.error('Stream processing error:', error);
@@ -159,6 +174,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } finally {
             currentController = null;
+            currentStreamId = null;
         }
     }
 
@@ -187,6 +203,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (batchActions) {
                 batchActions.classList.add('hidden');
             }
+
+            hideBottomBar();
             
             originalChunksData = null;
             return;
@@ -245,6 +263,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 onData: (data) => {
                     updateChunksContent(data.chunk_list, selectedChunks, data.done);
                     selectedChunks.forEach(chunk => chunk.classList.add('selected'));
+                    
+                    // 更新cost display
+                    if (data.msg) {
+                        showBottomBar(data.msg);
+                    }
+                    
                     // 当生成完成时显示批量操作按钮
                     if (data.done) {
                         selectedChunks.forEach(chunk => chunk.querySelector('.revision-actions').classList.remove('hidden'));
@@ -259,6 +283,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } catch (error) {
             if (error.name === 'AbortError') {
                 console.log('Writing was canceled');
+                hideBottomBar();
                 return;
             }
             console.error('Writing Error:', error);
@@ -267,6 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 revisionInput.value = `生成出错：${error.message}`;
                 autoResizeTextarea(revisionInput);
             });
+            hideBottomBar();
         }
     }
 
@@ -280,6 +306,9 @@ document.addEventListener('DOMContentLoaded', () => {
             originalChunksData = null;
             selectedChunks.forEach(c => c.classList.remove('selected'));
             selectedChunks = [];
+            
+            // Hide cost display when done
+            hideBottomBar();
             
             // 隐藏批量操作按钮
             const batchActions = document.querySelector('.batch-actions');

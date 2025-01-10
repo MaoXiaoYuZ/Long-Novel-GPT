@@ -67,7 +67,7 @@ class ChatMessages(list):
         for message in self:
             for key, value in message.items():
                 chinese_count, english_count, other_count = count_characters(value)
-                num_tokens += chinese_count + english_count // 5 + other_count
+                num_tokens += chinese_count // 2 + english_count // 5 + other_count // 2
         return num_tokens
     
     def get_prompt_messages_hash(self):

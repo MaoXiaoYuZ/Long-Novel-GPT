@@ -1,16 +1,26 @@
 // 自动调整文本框大小
 export function autoResizeTextarea(textarea) {
-    // 保存滚动位置
-    const container = document.getElementById('chunkContainer');
-    const scrollTop = container.scrollTop;
-    const windowScrollTop = window.scrollY || document.documentElement.scrollTop;
-    
     textarea.style.height = 'auto';
     textarea.style.height = textarea.scrollHeight + 'px';
-    
-    // 恢复滚动位置
-    container.scrollTop = scrollTop;
-    window.scrollTo(0, windowScrollTop);
+}
+
+// Function to stop a stream
+export async function stopStream(streamId) {
+    if (streamId) {
+        try {
+            await fetch(`${window._env_?.SERVER_URL}/stop_stream`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    stream_id: streamId
+                })
+            });
+        } catch (error) {
+            console.error('Error stopping stream:', error);
+        }
+    }
 }
 
 // 创建新的chunk
@@ -59,12 +69,18 @@ function handleChunksAdjustment(data_chunks, selectedChunks) {
         // 获取最后一个chunk的x-item显示状态
         const showX = !lastSelectedChunk.querySelector('.x-item').classList.contains('hidden');
         
+        // 使用DocumentFragment批量处理DOM操作
+        const fragment = document.createDocumentFragment();
+        const newSelectedChunks = [];
+        
         extraChunks.forEach(newChunk => {
             const chunkDiv = createNewChunk(newChunk[0], newChunk[1], '', true, showX);
-            lastSelectedChunk.parentNode.insertBefore(chunkDiv, lastSelectedChunk.nextSibling);
-            selectedChunks.push(chunkDiv);
-            lastSelectedChunk = chunkDiv;
+            fragment.appendChild(chunkDiv);
+            newSelectedChunks.push(chunkDiv);
         });
+        
+        lastSelectedChunk.parentNode.insertBefore(fragment, lastSelectedChunk.nextSibling);
+        selectedChunks.push(...newSelectedChunks);
     } else if (newChunksCount < selectedCount) {
         // 需要移除多余的chunks
         for (let i = newChunksCount; i < selectedCount; i++) {
@@ -77,12 +93,15 @@ function handleChunksAdjustment(data_chunks, selectedChunks) {
 
 // 更新chunks的内容
 export function updateChunksContent(data_chunks, selectedChunks, showRevisionBtn) {
-    handleChunksAdjustment(data_chunks, selectedChunks);
-
     // 保存滚动位置
     const container = document.getElementById('chunkContainer');
     const scrollTop = container.scrollTop;
     const windowScrollTop = window.scrollY || document.documentElement.scrollTop;
+    
+    handleChunksAdjustment(data_chunks, selectedChunks);
+    
+    // 收集所有需要调整大小的textareas
+    const textareasToResize = [];
     
     Array.from(selectedChunks).forEach((chunk, index) => {
         const newChunk = data_chunks[index];
@@ -94,7 +113,7 @@ export function updateChunksContent(data_chunks, selectedChunks, showRevisionBtn
         } else {
             revisionItem.classList.add('visible');
             revisionInput.value = newChunk[2];
-            autoResizeTextarea(revisionInput);
+            textareasToResize.push(revisionInput);
             if (showRevisionBtn) {
                 // 显示接受/拒绝按钮
                 const revisionActions = chunk.querySelector('.revision-actions');
@@ -102,20 +121,25 @@ export function updateChunksContent(data_chunks, selectedChunks, showRevisionBtn
             }
         }
         
-        
         const xInput = chunk.querySelector('.x-input');
         const yInput = chunk.querySelector('.y-input');
         
         xInput.value = newChunk[0];
-        autoResizeTextarea(xInput);
         yInput.value = newChunk[1];
-        autoResizeTextarea(yInput);
-        
+        textareasToResize.push(xInput, yInput);
     });
     
-    // 恢复滚动位置
-    container.scrollTop = scrollTop;
-    window.scrollTo(0, windowScrollTop);
+    // 批量处理所有textarea的大小调整
+    requestAnimationFrame(() => {
+        textareasToResize.forEach(textarea => {
+            textarea.style.height = 'auto';
+            textarea.style.height = textarea.scrollHeight + 'px';
+        });
+        
+        // 恢复滚动位置
+        container.scrollTop = scrollTop;
+        window.scrollTo(0, windowScrollTop);
+    });
 }
 
 // Toast message function
@@ -218,3 +242,80 @@ export function toggleLeftPanel(show) {
         }
     }
 } 
+
+// Modify storage keys based on mode and chapter
+export function getStorageKey(mode, chapter = null) {
+    if (mode === 'outline') {
+        return `data_${mode}`;
+    }
+    return `data_${mode}_${chapter}`;
+}
+
+// Consolidated storage functions
+export function saveDataToStorage(mode, chapter, chunks, context) {
+    const key = getStorageKey(mode, chapter);
+    const data = {
+        chunks: chunks,
+        context: context
+    };
+    
+    try {
+        localStorage.setItem(key, JSON.stringify(data));
+        // console.log(`Saved ${mode} data to localStorage`);
+        showToast('数据已保存', 'success', 1000);
+    } catch (e) {
+        console.error('Error saving to localStorage:', e);
+        if (e.name === 'QuotaExceededError') {
+            showToast('存储空间已满，请导出数据后清理存储空间', 'error');
+        } else {
+            showToast('保存失败', 'error');
+        }
+    }
+}
+
+export function getDataFromStorage(mode, chapter = null) {
+    const key = getStorageKey(mode, chapter);
+    try {
+        const value = localStorage.getItem(key);
+        if (!value) return { chunks: [], context: '' };
+        return JSON.parse(value);
+    } catch (e) {
+        console.error('Error getting data from localStorage:', e);
+        return { chunks: [], context: '' };
+    }
+}
+
+// Bottom bar display functions
+export function showBottomBar(content) {
+    let bar = document.querySelector('.bottom-bar');
+    if (!bar) {
+        bar = document.createElement('div');
+        bar.className = 'bottom-bar';
+        document.body.appendChild(bar);
+    }
+
+    bar.innerHTML = `<span class="bottom-bar-content">${content}</span>`;
+    
+    // Ensure the bar is visible
+    requestAnimationFrame(() => {
+        bar.classList.add('visible');
+    });
+}
+
+export function hideBottomBar() {
+    const bar = document.querySelector('.bottom-bar');
+    if (bar) {
+        bar.classList.remove('visible');
+        // Remove element after transition
+        setTimeout(() => {
+            if (bar.parentNode) {
+                bar.parentNode.removeChild(bar);
+            }
+        }, 300);
+    }
+}
+
+// Helper function to format cost display text
+export function formatCostDisplay(modelName, cost, currencySymbol) {
+    return `${modelName} (预计花费：${cost.toFixed(4)}${currencySymbol})`;
+}

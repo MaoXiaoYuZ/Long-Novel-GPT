@@ -13,7 +13,7 @@ def parser(response_msgs, plot_chunks, text_chunks):
     plot2text = json.loads(content)
 
     plot2text = {int(k) - 1 : [e - 1 for e in v] for k, v in plot2text.items()}
-    print(plot2text)
+    # print(plot2text)
     plot_text_pair = []
 
     # ploti_l = np.array(list(plot2text.keys()))

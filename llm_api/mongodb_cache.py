@@ -29,7 +29,6 @@ def create_cache_key(func_name: str, args: tuple, kwargs: dict) -> str:
 
 def llm_api_cache():
     """MongoDB缓存装饰器"""
-
     db_name=MONOGODB_DB_NAME
     collection_name='stream_chat'
     
@@ -71,8 +70,11 @@ def llm_api_cache():
                 if cached_data:
                     # 如果有缓存，yield缓存的结果
                     messages = ChatMessages(cached_data['return_value'])
+                    messages.model = args[0]['model']
                     for item in cached_data['yields']:
-                        time.sleep(min(item['delay'] / CACHE_REPLAY_SPEED, CACHE_REPLAY_MAX_DELAY))  # 应用加速倍数
+                        sacled_delay = min(item['delay'] / CACHE_REPLAY_SPEED, CACHE_REPLAY_MAX_DELAY)
+                        if sacled_delay > 0: time.sleep(sacled_delay)  # 应用加速倍数
+                        else: continue
                         if item['index'] > 0:
                             yield messages.prompt_messages + [{'role': 'assistant', 'content': messages.response[:item['index']]}]
                         else:

@@ -1,5 +1,7 @@
-import { createNewChunk, updateChunksContent, showToast, toggleLeftPanel } from './utils.js';
+import { createNewChunk, updateChunksContent, showToast, toggleLeftPanel, getStorageKey, saveDataToStorage, getDataFromStorage } from './utils.js';
 import jsyaml from 'https://cdn.skypack.dev/js-yaml';
+import { showNovelSelect } from './novel_select.js';
+import { showSettings, loadModelConfigs } from './settings.js';
 
 let examples = null;
 
@@ -75,21 +77,21 @@ function updateExampleCards(mode) {
 // Add window size configurations
 const WINDOW_SIZES = {
     'outline': [
-        { x: 1000, y: 1000, label: '1千字' },
-        { x: 2000, y: 2000, label: '2千字' },
-        { x: 500, y: 500, label: '5百字' }
+        { x: 500, y: 500, label: '500字' },
+        { x: 1000, y: 1000, label: '1000字' },
+        { x: 1000, y: 1500, label: '1500字' }
     ],
     'plot': [
-        { x: 100, y: 200, label: '2百字' },
-        { x: 250, y: 500, label: '5百字' },
-        { x: 500, y: 1000, label: '1千字' },
-        { x: 1000, y: 2000, label: '2千字' }
+        { x: 100, y: 200, label: '200字' },
+        { x: 250, y: 500, label: '500字' },
+        { x: 500, y: 1000, label: '1000字' },
+        { x: 1000, y: 1500, label: '1500字' }
     ],
     'draft': [
-        { x: 250, y: 500, label: '5百字' },
-        { x: 500, y: 1000, label: '1千字' },
-        { x: 1000, y: 2000, label: '2千字' },
-        { x: 1500, y: 3000, label: '3千字' }
+        { x: 250, y: 500, label: '500字' },
+        { x: 100, y: 200, label: '200字' },
+        { x: 500, y: 1000, label: '1000字' },
+        { x: 1000, y: 1500, label: '1500字' }
     ]
 };
 
@@ -112,54 +114,87 @@ function initModeHandlers() {
     const rightHeader = document.querySelector('.right-header');
     const modeTabs = document.querySelectorAll('.mode-tab');
 
-    // 初始化时设置第一个tab为active
-    modeTabs[0].classList.add('active');
-    writeMode.value = modeTabs[0].dataset.value;
-    updateWindowSizeOptions(modeTabs[0].dataset.value); // 初始化窗口大小选项
+    // 初始化时设置第一个非novel tab为active
+    const firstNonNovelTab = Array.from(modeTabs).find(tab => !['novel', 'settings'].includes(tab.dataset.value));
+    if (firstNonNovelTab) {
+        firstNonNovelTab.classList.add('active');
+        writeMode.value = firstNonNovelTab.dataset.value;
+        updateWindowSizeOptions(firstNonNovelTab.dataset.value);
+    }
 
     modeTabs.forEach(tab => {
         tab.addEventListener('click', () => {
             const newMode = tab.dataset.value;
-            
+
             // 调用content_section.js的处理函数
             if (!window.handleContentModeChange(newMode)) {
                 showToast('请先处理所有创作', 'warning');
                 return;
             }
+            
+            // 如果点击的是"选择小说"标签
+            if (newMode === 'novel') {
+                // 更新UI状态
+                modeTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                writeMode.value = newMode;
+                
+                showNovelSelect();
+                return;
+            }
+
+            // 如果点击的是"设置"标签
+            if (newMode === 'settings') {
+                // 更新UI状态
+                modeTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                let previousMode = writeMode.value;
+                writeMode.value = newMode;
+                
+                showSettings(previousMode);
+                return;
+            }
 
             // Save current state
             const currentMode = writeMode.value;
-            let currentChapter = currentMode === 'outline' ? null : document.getElementById('chapterSelect').selectedOptions[0].textContent;
-            const currentChunks = Array.from(document.querySelectorAll('.chunk-container')).map(chunk => [
-                chunk.querySelector('.x-input').value,
-                chunk.querySelector('.y-input').value,
-                chunk.querySelector('.revision-item').classList.contains('visible') ? 
-                    chunk.querySelector('.revision-input').value : null
-            ]);
-            
-            let currentContext = '';
-            if (currentMode !== 'draft') {
-                const leftPanelInput = document.querySelector('.left-panel-input');
-                if (leftPanelInput) {
-                    currentContext = leftPanelInput.value;
+            let currentChapter = currentMode === 'outline' ? null : document.getElementById('chapterSelect').value;
+            if (!['novel', 'settings'].includes(currentMode)) {
+                const currentChunks = Array.from(document.querySelectorAll('.chunk-container')).map(chunk => [
+                    chunk.querySelector('.x-input').value,
+                    chunk.querySelector('.y-input').value,
+                    chunk.querySelector('.revision-item').classList.contains('visible') ? 
+                        chunk.querySelector('.revision-input').value : null
+                ]);
+                
+                let currentContext = '';
+                if (currentMode !== 'draft') {
+                    const leftPanelInput = document.querySelector('.left-panel-input');
+                    if (leftPanelInput) {
+                        currentContext = leftPanelInput.value;
+                    }
                 }
-            }
 
-            // 保存当前状态
-            saveDataToStorage(currentMode, currentChapter, currentChunks, currentContext);
+                // 保存当前状态
+                saveDataToStorage(currentMode, currentChapter, currentChunks, currentContext);
 
-            // 根据模式切换更新内容
-            if (currentMode === 'outline') {
-                updateChapterSelect(currentChunks);
+                // 根据模式切换更新内容
+                if (currentMode === 'outline') {
+                    updateChapterSelect(currentChunks);
+                }
             }
 
             // 更新UI状态
             modeTabs.forEach(t => t.classList.remove('active'));
             tab.classList.add('active');
             writeMode.value = newMode;
+
+            if (['settings', ].includes(currentMode)) return;
+            
+            // 更新章节选择器
             document.querySelector('.chapter-selection').style.display = 
                 newMode === 'outline' ? 'none' : 'block';
             
+
             // 更新列标题
             updateColumnHeaders(newMode);
             
@@ -170,7 +205,7 @@ function initModeHandlers() {
             updateExampleCards(newMode);
             
             // 重新渲染chunks，这里的渲染是基于新的writemode，所以需要更新currentChapter
-            currentChapter = newMode === 'outline' ? null : document.getElementById('chapterSelect').selectedOptions[0].textContent;
+            currentChapter = newMode === 'outline' ? null : document.getElementById('chapterSelect').value;
             renderChunks(currentChapter);
 
             // 更新窗口大小选项
@@ -258,48 +293,6 @@ function handleChapterChange(chapter) {
     }
 }
 
-// Modify storage keys based on mode and chapter
-function getStorageKey(mode, chapter = null) {
-    if (mode === 'outline') {
-        return `data_${mode}`;
-    }
-    return `data_${mode}_${chapter}`;
-}
-
-// Consolidated storage functions
-function saveDataToStorage(mode, chapter, chunks, context) {
-    const key = getStorageKey(mode, chapter);
-    const data = {
-        chunks: chunks,
-        context: context
-    };
-    
-    try {
-        localStorage.setItem(key, JSON.stringify(data));
-        // console.log(`Saved ${mode} data to localStorage`);
-        showToast('数据已保存', 'success', 1000);
-    } catch (e) {
-        console.error('Error saving to localStorage:', e);
-        if (e.name === 'QuotaExceededError') {
-            showToast('存储空间已满，请导出数据后清理存储空间', 'error');
-        } else {
-            showToast('保存失败', 'error');
-        }
-    }
-}
-
-function getDataFromStorage(mode, chapter = null) {
-    const key = getStorageKey(mode, chapter);
-    try {
-        const value = localStorage.getItem(key);
-        if (!value) return { chunks: [], context: '' };
-        return JSON.parse(value);
-    } catch (e) {
-        console.error('Error getting data from localStorage:', e);
-        return { chunks: [], context: '' };
-    }
-}
-
 // Update renderChunks to use consolidated storage
 function renderChunks(chapter = null) {
     const mode = document.getElementById('writeMode').value;
@@ -314,7 +307,7 @@ function renderChunks(chapter = null) {
     if (mode === 'plot'){
         const outlineData = getDataFromStorage('outline');
         const chapterContent = outlineData.chunks.find(chunk => 
-            chunk[1].split('\n')[0].substring(0, 10) === chapter
+            chunk[1].split('\n')[0] === chapter
         );
         if (chapterContent && chapterContent[1] !== '') {
             if (savedData.context === '')savedData.context = chapterContent[1];
@@ -489,10 +482,11 @@ function updateChapterSelect(chunks) {
     
     chunks.forEach((chunk, index) => {
         if (chunk[1].trim()) {
-            const firstLine = chunk[1].split('\n')[0].substring(0, 10);
+            const chapterName = chunk[1].split('\n')[0];
             const option = document.createElement('option');
-            option.value = firstLine;
-            option.textContent = `${firstLine}`;
+            option.value = chapterName;
+            option.textContent = chapterName;
+            option.title = chapterName;
             chapterSelect.appendChild(option);
         }
     });
@@ -500,6 +494,7 @@ function updateChapterSelect(chunks) {
 
 // Initialize when DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    loadModelConfigs();
     initModeHandlers();
     initPromptHandlers();
     initChunksManagement();

@@ -1,20 +1,10 @@
 {
 	"files": [
 		{
-			"path": "frontend/js/prompt_section.js",
+			"path": "frontend/js/settings.js",
 			"bookmarks": [
 				{
-					"line": 131,
-					"column": 81,
-					"label": ""
-				}
-			]
-		},
-		{
-			"path": "frontend/js/content_section.js",
-			"bookmarks": [
-				{
-					"line": 284,
+					"line": 189,
 					"column": 9,
 					"label": ""
 				}

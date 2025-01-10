@@ -20,6 +20,9 @@ else:
 # Thread Configuration
 MAX_THREAD_NUM = int(os.getenv('MAX_THREAD_NUM', 5))
 
+
+MAX_NOVEL_SUMMARY_LENGTH = int(os.getenv('MAX_NOVEL_SUMMARY_LENGTH', 20000))
+
 # MongoDB Configuration
 ENABLE_MONOGODB = os.getenv('ENABLE_MONGODB', 'false').lower() == 'true'
 MONGODB_URI = os.getenv('MONGODB_URI', 'mongodb://127.0.0.1:27017/')
@@ -40,37 +43,39 @@ API_SETTINGS = {
     'wenxin': {
         'ak': os.getenv('WENXIN_AK', ''),
         'sk': os.getenv('WENXIN_SK', ''),
-        'default_model': os.getenv('WENXIN_DEFAULT_MODEL', 'ERNIE-Novel-8K'),
-        'default_sub_model': os.getenv('WENXIN_DEFAULT_SUB_MODEL', 'ERNIE-3.5-8K'),
+        'available_models': os.getenv('WENXIN_AVAILABLE_MODELS', '').split(','),
         'max_tokens': 4096,
     },
     'doubao': {
         'api_key': os.getenv('DOUBAO_API_KEY', ''),
-        'main_endpoint_id': os.getenv('DOUBAO_MAIN_ENDPOINT_ID', ''),
-        'sub_endpoint_id': os.getenv('DOUBAO_SUB_ENDPOINT_ID', ''),
-        'default_model': os.getenv('DOUBAO_DEFAULT_MODEL', 'doubao-pro-32k'),
-        'default_sub_model': os.getenv('DOUBAO_DEFAULT_SUB_MODEL', 'doubao-lite-32k'),
+        'endpoint_ids': os.getenv('DOUBAO_ENDPOINT_IDS', '').split(','),
+        'available_models': os.getenv('DOUBAO_AVAILABLE_MODELS', '').split(','),
         'max_tokens': 4096,
     },
     'gpt': {
         'base_url': os.getenv('GPT_BASE_URL', ''),
         'api_key': os.getenv('GPT_API_KEY', ''),
         'proxies': os.getenv('GPT_PROXIES', ''),
-        'default_model': os.getenv('GPT_DEFAULT_MODEL', 'gpt-4o'),
-        'default_sub_model': os.getenv('GPT_DEFAULT_SUB_MODEL', 'gpt-4o-mini'),
+        'available_models': os.getenv('GPT_AVAILABLE_MODELS', '').split(','),
         'max_tokens': 4096,
     },
     'zhipuai': {
         'api_key': os.getenv('ZHIPUAI_API_KEY', ''),
-        'default_model': os.getenv('ZHIPUAI_DEFAULT_MODEL', 'glm-4-plus'),
-        'default_sub_model': os.getenv('ZHIPUAI_DEFAULT_SUB_MODEL', 'glm-4-flashx'),
+        'available_models': os.getenv('ZHIPUAI_AVAILABLE_MODELS', '').split(','),
         'max_tokens': 4096,
     },
-    'others': {
-        'base_url': '',
-        'api_key': '',
-        'default_model': '',
-        'default_sub_model': '',
+    'local': {
+        'base_url': os.getenv('LOCAL_BASE_URL', ''),
+        'api_key': os.getenv('LOCAL_API_KEY', ''),
+        'available_models': os.getenv('LOCAL_AVAILABLE_MODELS', '').split(','),
         'max_tokens': 4096,
     }
 }
+
+for model in API_SETTINGS.values():
+    model['available_models'] = [e.strip() for e in model['available_models']]
+
+DEFAULT_MAIN_MODEL = os.getenv('DEFAULT_MAIN_MODEL', 'wenxin/ERNIE-Novel-8K')
+DEFAULT_SUB_MODEL = os.getenv('DEFAULT_SUB_MODEL', 'wenxin/ERNIE-3.5-8K')
+
+ENABLE_ONLINE_DEMO = os.getenv('ENABLE_ONLINE_DEMO', 'false').lower() == 'true'
