@@ -113,9 +113,10 @@ docker run -p 80:80 --env-file .env -d --add-host=host.docker.internal:host-gate
 ```
 # 这里GPT_BASE_URL格式只提供参考，主要是替换localhost或127.0.0.1
 # 可用的模型名可以填1个或多个，用英文逗号分隔
-LOCAL_BASE_URL=host.docker.internal:7777/v1
+LOCAL_BASE_URL=http://host.docker.internal:7777/v1
 LOCAL_API_KEY=you_api_key
 LOCAL_AVAILABLE_MODELS=model_name1,model_name2
+# 只有一个模型就只写一个模型名，多个模型要用英文逗号分割
 ```
 
 <h2 id="demo使用指南">🖥️ Demo 使用指南</h2>
