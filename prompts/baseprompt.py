@@ -2,8 +2,16 @@ import os
 import re
 from prompts.chat_utils import chat, log
 from prompts.pf_parse_chat import parse_chat
-from prompts.prompt_utils import load_text
-from prompts.common_parser import parse_last_code_block as parser
+from prompts.prompt_utils import load_text, match_code_block
+
+def parser(response_msgs):
+    content = response_msgs.response
+    blocks = match_code_block(content)
+    if blocks:
+        concat_blocks = "\n".join(blocks)
+        if concat_blocks.strip():
+            content = concat_blocks
+    return content
 
 
 def clean_txt_content(content):
