@@ -1,3 +1,9 @@
+import { copyToClipboard } from './copy_utils.js';
+import { showToast } from './utils.js';
+
+// Global variable to store current messages
+let currentMessages = [];
+
 export class ChatMessagesUI {
     constructor() {
         this.modal = this.createModal();
@@ -12,7 +18,10 @@ export class ChatMessagesUI {
             <div class="chat-modal-content">
                 <div class="chat-modal-header">
                     <h2>Prompt Messages</h2>
-                    <button class="close-btn">&times;</button>
+                    <div class="chat-modal-actions">
+                        <button class="copy-btn">复制</button>
+                        <button class="close-btn">&times;</button>
+                    </div>
                 </div>
                 <div class="chat-messages"></div>
             </div>
@@ -25,6 +34,9 @@ export class ChatMessagesUI {
         const closeBtn = this.modal.querySelector('.close-btn');
         closeBtn.addEventListener('click', () => this.hide());
 
+        const copyBtn = this.modal.querySelector('.copy-btn');
+        copyBtn.addEventListener('click', () => this.copyMessages());
+
         // Close modal when clicking outside
         this.modal.addEventListener('click', (e) => {
             if (e.target === this.modal) {
@@ -33,7 +45,17 @@ export class ChatMessagesUI {
         });
     }
 
+    copyMessages() {
+        const text = currentMessages.map(msg => `${msg.role}:\n${msg.content}`).join('\n\n');
+        copyToClipboard(
+            text,
+            () => showToast('复制成功', 'success'),
+            () => showToast('复制失败', 'error')
+        );
+    }
+
     show(messages) {
+        currentMessages = messages;
         this.messageContainer.innerHTML = '';
         messages.forEach(msg => {
             const messageEl = document.createElement('div');
@@ -69,7 +91,7 @@ const testMessages = [
 
 // Create button for testing
 // const testButton = document.createElement('button');
-// testButton.textContent = '显示Prompt';
+// testButton.textContent = '查看Prompt';
 // testButton.className = 'show-prompt-btn';
 // document.querySelector('.prompt-actions').appendChild(testButton);
 

@@ -1,4 +1,5 @@
 import { autoResizeTextarea, createNewChunk, updateChunksContent, showToast, stopStream, showBottomBar, hideBottomBar, formatCostDisplay } from './utils.js';
+import { ChatMessagesUI } from './chat_messages.js';
 
 document.addEventListener('DOMContentLoaded', () => {
     const chunkContainer = document.getElementById('chunkContainer');
@@ -10,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentController = null;
     let currentStreamId = null;
     let currentMode = 'outline';
+    let isViewingPrompt = false;
 
     function handleChunkSelection(e) {
         // 如果正在创作，则不允许选择
@@ -111,7 +113,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 global_context: writerMode !== 'draft' ? document.querySelector('.left-panel-input').value : '',
                 settings: {
                     MAX_THREAD_NUM: settings.MAX_THREAD_NUM,
-                }
+                },
+                only_prompt: isViewingPrompt
             };
             
             const response = await fetch(`${window._env_?.SERVER_URL}/write`, {
@@ -147,6 +150,22 @@ document.addEventListener('DOMContentLoaded', () => {
                                     currentStreamId = data.stream_id;
                                     continue;
                                 }
+
+                                // 处理查看Prompt的情况
+                                if (isViewingPrompt && data.prompts) {
+                                    if (data.prompts.length > 1) {
+                                        showToast('有多个Prompt，只显示第一个', 'info');
+                                    }
+                                    if (data.prompts.length > 0) {
+                                        const chatUI = new ChatMessagesUI();
+                                        chatUI.show(data.prompts[0]);
+                                    }
+                                    // 再次点击开始创作按钮，取消创作
+                                    actionBtn.click();
+                                    // 睡眠1s等待UI更新
+                                    await new Promise(resolve => setTimeout(resolve, 1000));
+                                    return;
+                                }
                                 
                                 // 处理delta更新
                                 if (data.chunk_type === 'delta' && prevChunks) {
@@ -175,6 +194,7 @@ document.addEventListener('DOMContentLoaded', () => {
         } finally {
             currentController = null;
             currentStreamId = null;
+            isViewingPrompt = false;
         }
     }
 
@@ -410,6 +430,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 handleBatchRevision(false);
             }
         });
+
+        // 添加查看Prompt按钮的事件监听
+        const viewPromptBtn = document.querySelector('.show-prompt-btn');
+        if (viewPromptBtn) {
+            viewPromptBtn.addEventListener('click', () => {
+                isViewingPrompt = true;
+                actionBtn.click();
+            });
+        }
     }
 
     // 添加mode切换的处理函数

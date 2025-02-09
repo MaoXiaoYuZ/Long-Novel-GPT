@@ -128,7 +128,7 @@ def get_delta_chunks(prev_chunks, curr_chunks):
     return "delta", delta_chunks
 
 
-def call_write(writer_mode, chunk_list, global_context, chunk_span, prompt_content, x_chunk_length, y_chunk_length, main_model, sub_model, max_thread_num):
+def call_write(writer_mode, chunk_list, global_context, chunk_span, prompt_content, x_chunk_length, y_chunk_length, main_model, sub_model, max_thread_num, only_prompt):
     if ENABLE_ONLINE_DEMO:
         if max_thread_num > MAX_THREAD_NUM:
             raise Exception("在线Demo模型下，最大线程数不能超过" + str(MAX_THREAD_NUM) + "！")
@@ -207,7 +207,11 @@ def call_write(writer_mode, chunk_list, global_context, chunk_span, prompt_conte
             else:
                 current_text = output['text']
             data_chunks.append((chunk.x_chunk, chunk.y_chunk, current_text))
-        
+            
+        if only_prompt:
+            yield {'prompts': [e['response_msgs'] for e in prompt_outputs]}
+            return
+
         current_time = time.time()
         if current_time - last_yield_time >= 0.2:  # Check if 0.2 seconds have passed
             yield delta_wrapper(data_chunks, done=False, msg=f"正在 {prompt_name} （{len(prompt_outputs)} / {len(chunk_list)}）" + f" 模型：{current_model} 花费：{current_cost:.5f}{currency_symbol}" if current_model else '')
@@ -231,6 +235,7 @@ def write():
     main_model = data['main_model']
     sub_model = data['sub_model']
     global_context = data['global_context']
+    only_prompt = data['only_prompt']
     
     # Update settings if provided
     if 'settings' in data:
@@ -245,7 +250,7 @@ def write():
             # Send stream ID to client
             yield f"data: {json.dumps({'stream_id': stream_id})}\n\n"
 
-            for result in call_write(writer_mode, list(chunk_list), global_context, chunk_span, prompt_content, x_chunk_length, y_chunk_length, main_model, sub_model, max_thread_num):
+            for result in call_write(writer_mode, list(chunk_list), global_context, chunk_span, prompt_content, x_chunk_length, y_chunk_length, main_model, sub_model, max_thread_num, only_prompt):
                 if not active_streams.get(stream_id, False):
                     # Stream was stopped by client
                     print(f"Stream was stopped by client: {stream_id}")

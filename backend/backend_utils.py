@@ -2,7 +2,7 @@ from llm_api import ModelConfig
 
 def get_model_config_from_provider_model(provider_model):
     from config import API_SETTINGS
-    provider, model = provider_model.split('/')
+    provider, model = provider_model.split('/', 1)
     provider_config = API_SETTINGS[provider]
     
     if provider == 'doubao':
