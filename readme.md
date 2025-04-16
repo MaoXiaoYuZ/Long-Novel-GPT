@@ -163,9 +163,3 @@ MAX_THREAD_NUM=5
 <h2 id="贡献">🤝 贡献</h2>
 
 我们欢迎所有形式的贡献，无论是新功能的建议、代码改进，还是 bug 报告。请通过 GitHub issues 或 pull requests 与我们联系。
-
-大家也可以加入群，在群里讨论。
-
-<p align="center">
-  <img src="assets/group.jpg" alt="企业微信群二维码" width="300"/>
-</p>
