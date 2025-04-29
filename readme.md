@@ -9,17 +9,13 @@
   <a href="#更新日志">更新日志</a> •
   <a href="#小说生成prompt">小说生成Prompt</a> •
   <a href="#快速上手">快速上手</a> •
-  <a href="#demo使用指南">Demo使用指南</a> •
-  <a href="#贡献">贡献</a>
+  <a href="#demo使用指南">Demo使用指南</a>
 </p>
 
 <hr>
 
 <h2 id="关于项目">🎯 关于项目</h2>
 
-该项目包括一个基于 GPT 等大语言模型的长篇小说生成器，同时还有各类小说生成 Prompt 以及教程。我们欢迎社区贡献，持续更新以提供最佳的小说创作体验。
-
-### 💡 设计思路
 Long-Novel-GPT的核心是一个基于LLM和RAG的长篇小说Agent，根据用户的提问（要写什么小说，要对什么情节做出什么改动）LNGPT会调用工具检索相关正文片段和剧情纲要，并且对相关正文片段进行修改，同时更新剧情纲要。流程如下：
 
 <p align="center">
@@ -37,7 +33,6 @@ Long-Novel-GPT的核心是一个基于LLM和RAG的长篇小说Agent，根据用�
 <h2 id="更新日志">📅 更新日志</h2>
 
 ### 🎉 Long-Novel-GPT 2.2 更新
-- 在线演示：[Long-Novel-GPT Demo](http://14.103.180.212/)
 - 支持查看Prompt
 - **支持导入小说，在已有的小说基础上进行改写**
 - 支持在**设置**中选择模型
@@ -72,17 +67,6 @@ Long-Novel-GPT的核心是一个基于LLM和RAG的长篇小说Agent，根据用�
 [📝 提交你的 Prompt](https://github.com/MaoXiaoYuZ/Long-Novel-GPT/issues/new?assignees=&labels=prompt&template=custom_prompt.md&title=新的Prompt)
 
 <h2 id="快速上手">🚀 快速上手</h2>
-
-### 在线 Demo
-
-无需安装，立即体验我们的在线 Demo：[Long-Novel-GPT Demo](http://14.103.180.212/)
-
-<p align="center">
-  <img src="assets/write_text_preview.gif" alt="创作界面预览" width="600"/>
-  <br>
-  <em>多线程并行创作（<a href="assets/write_text_preview.gif">图中</a>展示的是创作剧情的场景）</em>
-</p>
-
 
 ### Docker一键部署
 
@@ -159,7 +143,3 @@ MAX_THREAD_NUM=5
 总的来说，2.1版本能够实现在用户监督下生成达到签约门槛的网文。
 
 而且，我们的最终目标始终是实现一键生成全书，将在2-3个版本迭代后正式推出。
-
-<h2 id="贡献">🤝 贡献</h2>
-
-我们欢迎所有形式的贡献，无论是新功能的建议、代码改进，还是 bug 报告。请通过 GitHub issues 或 pull requests 与我们联系。
