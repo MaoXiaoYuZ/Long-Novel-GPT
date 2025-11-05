@@ -16,7 +16,7 @@
 
 <h2 id="关于项目">🎯 关于项目</h2>
 
-Long-Novel-GPT的核心是一个基于LLM和RAG的长篇小说Agent，根据用户的提问（要写什么小说，要对什么情节做出什么改动）LNGPT会调用工具检索相关正文片段和剧情纲要，并且对相关正文片段进行修改，同时更新剧情纲要。流程如下：
+Long-Novel-GPT的核心是一个基于LLM和RAG的长篇小说Agent，根据用户的提问（要写什么小说，要对什么情节做出什么改动），LNGPT会采用大纲-章节-正文的自上而下扩写来一步步生成最终长篇小说，在生成过程中调用工具检索相关正文片段和剧情纲要，并且对相关正文片段进行修改，同时更新剧情纲要。流程如下：
 
 <p align="center">
   <img src="assets/Long-Novel-Agent.jpg" alt="Long Novel Agent Architecture" width="600"/>
